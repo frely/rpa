@@ -471,7 +471,7 @@ def find_saleOrderNumber_id(sale_order_number):
     }
 
     response = s.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
-    id = response.json()['result']['records'][0]['id']#['receive_phone']
+    id = response.json()['result']['records'][0]['id']
     print(id)
 
 def find_saleOrderNumber_phone(id):
