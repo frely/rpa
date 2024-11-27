@@ -2,6 +2,8 @@ import os
 import requests
 import json
 import pandas as pd
+import logging
+import sys
 
 baseUrl = 'https://admin.vdaoai.com'
 
@@ -236,6 +238,9 @@ def find_salesDetailReport():
     }
 
     response = s.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
+    if response.status_code != 200:
+        logging.error('网络异常，程序退出')
+        sys.exit(0)
     find_salesDetailReport_data = response.json()['result']['records']
 
     # 初始化列表
@@ -293,7 +298,7 @@ def find_salesDetailReport():
     )
     #print(df)
     #print(sale_order_number, sale_type, sale_state, sale_date, salesperson, channel_id)
-    df.to_excel('销售明细报表.xlsx', index=False)
+    df.to_excel('销售明细报表.xlsx', index=False, encoding='gbk')
 
 
 def find_saleOrderNumber_id(sale_order_number):
@@ -471,6 +476,9 @@ def find_saleOrderNumber_id(sale_order_number):
     }
 
     response = s.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
+    if response.status_code != 200:
+        logging.error('网络异常，程序退出')
+        sys.exit(0)
     id = response.json()['result']['records'][0]['id']
     print(id)
 
@@ -917,6 +925,9 @@ def find_saleOrderNumber_phone(id):
     }
 
     response = s.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
+    if response.status_code != 200:
+        logging.error('网络异常，程序退出')
+        sys.exit(0)
     # 客户电话
     phone = response.json()['result'][0]['phone']
     print(phone)
@@ -924,5 +935,6 @@ def find_saleOrderNumber_phone(id):
 
 if __name__ == '__main__':
     find_salesDetailReport()
+    #df = pd.read_csv('销售明细报表.xlsx', encoding='gbk', usecols=[0,5])
     #find_saleOrderNumber_id("XSD24103116017")
     #find_saleOrderNumber_phone(137088)
