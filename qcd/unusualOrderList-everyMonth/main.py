@@ -5,6 +5,8 @@ import pandas as pd
 import logging
 import sys
 
+logging.basicConfig(level=logging.INFO, encoding='utf-8', format='%(levelname)s:%(asctime)s:%(message)s')
+
 baseUrl = 'https://admin.vdaoai.com'
 
 # 创建一个 Session 对象
@@ -16,7 +18,11 @@ s = requests.Session()
 #         'Content-Type': 'application/x-www-form-urlencoded'}
 # s.post(baseurl + '/web/login', data=payload, headers=headers)
 
-cookie = os.getenv('odoo-cookie')
+cookie = os.getenv('odooCookie')
+if not cookie:
+    logging.error("未找到变量: odoo-cookie")
+    sys.exit(0)
+
 headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Content-Type': 'application/json',
         'Cookie': cookie}
@@ -207,7 +213,7 @@ def find_salesDetailReport():
         },
         "offset": 0,
         "order": "",
-        "limit": 3,
+        "limit": 10000,
         "context": {
             "lang": "zh_CN",
             "tz": "Etc/GMT-8",
@@ -260,21 +266,66 @@ def find_salesDetailReport():
     performance = []
     is_refund = []
     for i in find_salesDetailReport_data:
-        sale_order_number.append(i['sale_order_number'])
-        sale_type.append(i['sale_type'])
-        sale_state.append(i['sale_state'])
-        sale_date.append(i['sale_date'])
-        salesperson.append(i['salesperson']['display_name'])
-        channel_id.append(i['channel_id']['display_name'])
-        level1_department_id.append(i['level1_department_id']['display_name'])
-        level2_department_id.append(i['level2_department_id']['display_name'])
-        level3_department_id.append(i['level3_department_id']['display_name'])
-        performance_department_id.append(i['performance_department_id']['display_name'])
-        is_apportionment.append(i['is_apportionment'])
-        partner_name.append(i['partner_name'])
-        lv2_product_category.append(i['lv2_product_category']['display_name'])
-        performance.append(i['performance'])
-        is_refund.append(i['is_refund'])
+        try:
+            sale_order_number.append(i['sale_order_number'])
+        except:
+            sale_order_number.append("无")
+        try:
+            sale_type.append(i['sale_type'])
+        except:
+            sale_type.append("无")
+        try:
+            sale_state.append(i['sale_state'])
+        except:
+            sale_state.append("无")
+        try:
+            sale_date.append(i['sale_date'])
+        except:
+            sale_date.append("无")
+        try:
+            salesperson.append(i['salesperson']['display_name'])
+        except:
+            salesperson.append("无")
+        try:
+            channel_id.append(i['channel_id']['display_name'])
+        except:
+            channel_id.append("无")
+        try:
+            level1_department_id.append(i['level1_department_id']['display_name'])
+        except:
+            level1_department_id.append("无")
+        try:
+            level2_department_id.append(i['level2_department_id']['display_name'])
+        except:
+            level2_department_id.append("无")
+        try:
+            level3_department_id.append(i['level3_department_id']['display_name'])
+        except:
+            level3_department_id.append("无")
+        try:
+            performance_department_id.append(i['performance_department_id']['display_name'])
+        except:
+            performance_department_id.append("无")
+        try:
+            is_apportionment.append(i['is_apportionment'])
+        except:
+            is_apportionment.append("无")
+        try:
+            partner_name.append(i['partner_name'])
+        except:
+            partner_name.append("无")
+        try:
+            lv2_product_category.append(i['lv2_product_category']['display_name'])
+        except:
+            lv2_product_category.append("无")
+        try:
+            performance.append(i['performance'])
+        except:
+            performance.append("无")
+        try:
+            is_refund.append(i['is_refund'])
+        except:
+            is_refund.append("无")
 
     df = pd.DataFrame(
         {"销售单号": sale_order_number,
@@ -294,15 +345,11 @@ def find_salesDetailReport():
          "实际业绩": performance,
          "是否退款": is_refund,
         },
-        #index=["x", "y", "z"]
     )
-    #print(df)
-    #print(sale_order_number, sale_type, sale_state, sale_date, salesperson, channel_id)
-    df.to_excel('销售明细报表.xlsx', index=False, encoding='gbk')
+    return df, sale_order_number
 
 
 def find_saleOrderNumber_id(sale_order_number):
-    #sale_order_number = "XSD24103116017"
     # 销售订单查询
     body = {
     "id": 62,
@@ -480,7 +527,7 @@ def find_saleOrderNumber_id(sale_order_number):
         logging.error('网络异常，程序退出')
         sys.exit(0)
     id = response.json()['result']['records'][0]['id']
-    print(id)
+    return id
 
 def find_saleOrderNumber_phone(id):
     body = {
@@ -930,11 +977,26 @@ def find_saleOrderNumber_phone(id):
         sys.exit(0)
     # 客户电话
     phone = response.json()['result'][0]['phone']
-    print(phone)
+    return phone
 
+
+def run():
+    # 查询订单
+    find_salesDetailReport_data = find_salesDetailReport()
+
+    # 初始化电话列表
+    phone_list = []
+    for i in find_salesDetailReport_data[1]:
+        try:
+            id = find_saleOrderNumber_id(i)
+        except:
+            logging.warning(f"查询订单无id: {i}")
+            phone_list.append("无")
+            continue
+        phone = find_saleOrderNumber_phone(id)
+        phone_list.append(phone)
+    find_salesDetailReport_data[0]["客户电话"] = phone_list
+    find_salesDetailReport_data[0].to_excel('销售明细报表.xlsx', index=False)
 
 if __name__ == '__main__':
-    find_salesDetailReport()
-    #df = pd.read_csv('销售明细报表.xlsx', encoding='gbk', usecols=[0,5])
-    #find_saleOrderNumber_id("XSD24103116017")
-    #find_saleOrderNumber_phone(137088)
+    run()
