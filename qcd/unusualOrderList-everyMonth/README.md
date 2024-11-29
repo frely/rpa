@@ -8,10 +8,13 @@ docker build -t app .
 运行:
 ```shell
 docker run --rm \
-    -e odoo_host="127.0.0.1" \
-    -e odoo_port=5432 \
-    -e odoo_dbname=odoo \
-    -e odoo_dbuser=read_only_user \
-    -e odoo_dbpassword=passwd \
+    -e odoo_host="http://localhost" \
+    -e odoo_db=odoo \
+    -e odoo_username=read_only_user \
+    -e rpa_host="http://localhost" \
+    -e rpa_port=3306 \
+    -e rpa_db=db \
+    -e rpa_user=user \
+    -e rpa_passwd=passwd
     app
 ```

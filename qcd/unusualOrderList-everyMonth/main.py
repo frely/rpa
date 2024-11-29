@@ -4,30 +4,40 @@ import json
 import pandas as pd
 import logging
 import sys
+import pymysql.cursors
 
 logging.basicConfig(level=logging.INFO, encoding='utf-8', format='%(levelname)s:%(asctime)s:%(message)s')
 
-baseUrl = 'https://admin.vdaoai.com'
+baseUrl = os.getenv("odoo_host")
 
-# 创建一个 Session 对象
-s = requests.Session()
+# 获取cookie
+data = {
+    'jsonrpc': '2.0',
+    'method': 'call',
+    'params': {
+        'db': os.getenv("odoo_db"),
+        'login': os.getenv("odoo_username"),
+        'password': os.getenv("odoo_userpasswd"),
+    }
+}
+session_response = requests.post(f'{baseUrl}/web/session/authenticate', json=data)
+if session_response.status_code != 200:
+    logging.error('请求失败，程序退出')
+    sys.exit(1)
+session_data = session_response.json()
+if session_data['result'] and session_response.cookies['session_id']:
+    session_id = session_response.cookies['session_id']
+else:
+    logging.error('登录失败')
+    sys.exit(1)
 
-# 登录网站
-# payload = {'username': 'xiao.wang@vdao365.com', 'password': 'gS6@wY2#lI1=eB1'}
-# headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-#         'Content-Type': 'application/x-www-form-urlencoded'}
-# s.post(baseurl + '/web/login', data=payload, headers=headers)
+headers = {
+    'Content-Type': 'application/json',
+    'Cookie': f"session_id={session_id}",
+}
 
-cookie = os.getenv('odooCookie')
-if not cookie:
-    logging.error("未找到变量: odoo-cookie")
-    sys.exit(0)
 
-headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-        'Content-Type': 'application/json',
-        'Cookie': cookie}
-
-def find_salesDetailReport():
+def find_salesDetailReport(find_num):
     # 销售明细报表查询字段
     body = {
     "id": 12,
@@ -213,7 +223,7 @@ def find_salesDetailReport():
         },
         "offset": 0,
         "order": "",
-        "limit": 10000,
+        "limit": find_num,
         "context": {
             "lang": "zh_CN",
             "tz": "Etc/GMT-8",
@@ -243,10 +253,10 @@ def find_salesDetailReport():
     }
     }
 
-    response = s.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
+    response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('网络异常，程序退出')
-        sys.exit(0)
+        logging.error('请求失败，程序退出')
+        sys.exit(1)
     find_salesDetailReport_data = response.json()['result']['records']
 
     # 初始化列表
@@ -522,10 +532,10 @@ def find_saleOrderNumber_id(sale_order_number):
     }
     }
 
-    response = s.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
+    response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('网络异常，程序退出')
-        sys.exit(0)
+        logging.error('请求失败，程序退出')
+        sys.exit(1)
     id = response.json()['result']['records'][0]['id']
     return id
 
@@ -971,32 +981,70 @@ def find_saleOrderNumber_phone(id):
     }
     }
 
-    response = s.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
+    response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('网络异常，程序退出')
-        sys.exit(0)
+        logging.error('请求失败，程序退出')
+        sys.exit(1)
     # 客户电话
     phone = response.json()['result'][0]['phone']
     return phone
 
+def find_sql():
+    connection = pymysql.connect(host=os.getenv('rpa_host'),
+                                port=int(os.getenv('rpa_port')),
+                                user=os.getenv('rpa_user'),
+                                password=os.getenv('rpa_passwd'),
+                                database=os.getenv('rpa_db'),
+                                charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+    
+    with connection:
+        with connection.cursor() as cursor:
+            sql = "SELECT `客户电话` FROM `云客客户表`"
+            cursor.execute(sql)
+            result = cursor.fetchall()
+            return result
+
 
 def run():
+    logging.info("执行中,请等待...")
     # 查询订单
-    find_salesDetailReport_data = find_salesDetailReport()
 
-    # 初始化电话列表
+    # 设置最大查询数: 默认10000
+    find_num = 1
+    find_salesDetailReport_data = find_salesDetailReport(find_num)
+
+    # 获取订单中的客户电话
     phone_list = []
     for i in find_salesDetailReport_data[1]:
         try:
             id = find_saleOrderNumber_id(i)
         except:
-            logging.warning(f"查询订单无id: {i}")
+            #logging.warning(f"查询订单无id: {i}")
             phone_list.append("无")
             continue
         phone = find_saleOrderNumber_phone(id)
         phone_list.append(phone)
     find_salesDetailReport_data[0]["客户电话"] = phone_list
-    find_salesDetailReport_data[0].to_excel('销售明细报表.xlsx', index=False)
+
+    # 查询云客客户电话列表
+    sql_list = find_sql()
+    
+    # 排除正常的订单
+    num = 0
+    drop_list = []
+    for i in phone_list:
+        data = "{'客户电话': " + i + "}"
+        if data in sql_list:
+            drop_list.append(num)
+            print(num)
+        num += num
+    
+    # 删除正常的数据
+    pd = find_salesDetailReport_data[0].drop(drop_list)
+
+    pd.to_excel('销售明细报表异常订单.xlsx', index=False)
+    logging.info("程序执行完毕")
 
 if __name__ == '__main__':
     run()
