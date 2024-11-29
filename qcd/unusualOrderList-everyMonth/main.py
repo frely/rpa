@@ -1042,29 +1042,29 @@ def run():
     
     # 删除正常的数据
     pd = find_salesDetailReport_data[0].drop(drop_list)
+    
 
     # 英转中
-    pd['销售单类型'] = pd['销售单类型'].replace({
-        "agent_sale", "代理单",
-        "agent_sale_replacement", "代理单换货",
-        "agent_sale_return", "代理单退货",
-        "giveaway_sale", "赠品单",
-        "online_promote_sale", "特促单",
-        "sale", "订单",
-        "sale_promotion", "订单促销",
-        "sale_replacement", "订单换货",
-        "sale_return", "订单退货",
-        "service_sale", "服务单",
-    })
-    pd['单据状态'] = pd['单据状态'].replace({
-        "partial_payment", "审批中",
-        "sale", "已完成",
-        "sent", "支付中",
-    })
-    pd['是否退款'] = pd['是否退款'].replace({
-        "no", "否",
-        "yes", "是",
-    })
+    pd['销售单类型'] = pd['销售单类型'].replace("agent_sale", "代理单")
+    pd['销售单类型'] = pd['销售单类型'].replace("agent_sale_replacement", "代理单换货")
+    pd['销售单类型'] = pd['销售单类型'].replace("agent_sale_return", "代理单退货")
+    pd['销售单类型'] = pd['销售单类型'].replace("giveaway_sale", "赠品单")
+    pd['销售单类型'] = pd['销售单类型'].replace("online_promote_sale", "特促单")
+    pd['销售单类型'] = pd['销售单类型'].replace("sale", "订单")
+    pd['销售单类型'] = pd['销售单类型'].replace("sale_promotion", "订单促销")
+    pd['销售单类型'] = pd['销售单类型'].replace("sale_replacement", "订单换货")
+    pd['销售单类型'] = pd['销售单类型'].replace("sale_return", "订单退货")
+    pd['销售单类型'] = pd['销售单类型'].replace("service_sale", "服务单")
+
+    pd['单据状态'] = pd['单据状态'].replace("partial_payment", "审批中")
+    pd['单据状态'] = pd['单据状态'].replace("sale", "已完成")
+    pd['单据状态'] = pd['单据状态'].replace("sent", "支付中")
+
+    pd['是否分摊'] =pd['是否分摊'].replace("no", "否")
+    pd['是否分摊'] =pd['是否分摊'].replace("yes", "是")
+
+    pd['是否退款'] =pd['是否退款'].replace("no", "否")
+    pd['是否退款'] =pd['是否退款'].replace("yes", "是")
 
     pd.to_excel('销售明细报表异常订单.xlsx', index=False)
     logging.info("程序执行完毕")
