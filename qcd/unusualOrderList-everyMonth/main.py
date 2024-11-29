@@ -1011,7 +1011,7 @@ def run():
     # 查询订单
 
     # 设置最大查询数: 默认10000
-    find_num = 1
+    find_num = 10000
     find_salesDetailReport_data = find_salesDetailReport(find_num)
 
     # 获取订单中的客户电话
