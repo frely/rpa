@@ -5,6 +5,7 @@ import pandas as pd
 import logging
 import sys
 import pymysql.cursors
+import time
 
 logging.basicConfig(level=logging.INFO, encoding='utf-8', format='%(levelname)s:%(asctime)s:%(message)s')
 
@@ -275,17 +276,55 @@ def find_salesDetailReport(find_num):
     lv2_product_category = []
     performance = []
     is_refund = []
+
+    # 英转中
+    # 销售单类型
+    sale_type_dict = {
+        "agent_sale": "代理单",
+        "agent_sale_replacement": "代理单换货",
+        "agent_sale_return": "代理单退货",
+        "giveaway_sale": "赠品单",
+        "online_promote_sale": "特促单",
+        "sale": "订单",
+        "sale_promotion": "订单促销",
+        "sale_replacement": "订单换货",
+        "sale_return": "订单退货",
+        "service_sale": "服务单",
+        }
+    # 单据状态
+    sale_state_dict = {
+        "partial_payment": "审批中",
+        "sale": "已完成",
+        "sent": "支付中",
+    }
+    # 是否分摊
+    is_apportionment_dict = {
+        "no": "否",
+        "yes": "是",
+    }
+    # 是否退款
+    is_refund_dict = {
+        "no": "否",
+        "yes": "是",
+    }
+
     for i in find_salesDetailReport_data:
         try:
             sale_order_number.append(i['sale_order_number'])
         except:
             sale_order_number.append("无")
         try:
-            sale_type.append(i['sale_type'])
+            if i['sale_type'] in sale_type_dict:
+                sale_type.append(sale_type_dict[i['sale_type']])
+            else:
+                sale_type.append(i['sale_type'])
         except:
             sale_type.append("无")
         try:
-            sale_state.append(i['sale_state'])
+            if i['sale_state'] in sale_state_dict:
+                sale_state.append(sale_state_dict[i['sale_state']])
+            else:
+                sale_state.append(i['sale_state'])
         except:
             sale_state.append("无")
         try:
@@ -317,7 +356,10 @@ def find_salesDetailReport(find_num):
         except:
             performance_department_id.append("无")
         try:
-            is_apportionment.append(i['is_apportionment'])
+            if i['is_apportionment'] in is_apportionment_dict:
+                is_apportionment.append(is_apportionment_dict[i['is_apportionment']])
+            else:
+                is_apportionment.append(i['is_apportionment'])
         except:
             is_apportionment.append("无")
         try:
@@ -333,7 +375,10 @@ def find_salesDetailReport(find_num):
         except:
             performance.append("无")
         try:
-            is_refund.append(i['is_refund'])
+            if i['is_refund'] in is_refund_dict:
+                is_refund.append(is_refund_dict[i['is_refund']])
+            else:
+                is_refund.append(i['is_refund'])
         except:
             is_refund.append("无")
 
@@ -534,7 +579,8 @@ def find_saleOrderNumber_id(sale_order_number):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('请求失败，程序退出')
+        logging.error('请求失败，重试中')
+        time.sleep(3)
         sys.exit(1)
     id = response.json()['result']['records'][0]['id']
     return id
@@ -1042,29 +1088,6 @@ def run():
     
     # 删除正常的数据
     pd = find_salesDetailReport_data[0].drop(drop_list)
-    
-
-    # 英转中
-    pd['销售单类型'] = pd['销售单类型'].replace("agent_sale", "代理单")
-    pd['销售单类型'] = pd['销售单类型'].replace("agent_sale_replacement", "代理单换货")
-    pd['销售单类型'] = pd['销售单类型'].replace("agent_sale_return", "代理单退货")
-    pd['销售单类型'] = pd['销售单类型'].replace("giveaway_sale", "赠品单")
-    pd['销售单类型'] = pd['销售单类型'].replace("online_promote_sale", "特促单")
-    pd['销售单类型'] = pd['销售单类型'].replace("sale", "订单")
-    pd['销售单类型'] = pd['销售单类型'].replace("sale_promotion", "订单促销")
-    pd['销售单类型'] = pd['销售单类型'].replace("sale_replacement", "订单换货")
-    pd['销售单类型'] = pd['销售单类型'].replace("sale_return", "订单退货")
-    pd['销售单类型'] = pd['销售单类型'].replace("service_sale", "服务单")
-
-    pd['单据状态'] = pd['单据状态'].replace("partial_payment", "审批中")
-    pd['单据状态'] = pd['单据状态'].replace("sale", "已完成")
-    pd['单据状态'] = pd['单据状态'].replace("sent", "支付中")
-
-    pd['是否分摊'] =pd['是否分摊'].replace("no", "否")
-    pd['是否分摊'] =pd['是否分摊'].replace("yes", "是")
-
-    pd['是否退款'] =pd['是否退款'].replace("no", "否")
-    pd['是否退款'] =pd['是否退款'].replace("yes", "是")
 
     pd.to_excel('销售明细报表异常订单.xlsx', index=False)
     logging.info("程序执行完毕")
