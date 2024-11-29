@@ -3,7 +3,6 @@ import requests
 import json
 import pandas as pd
 import logging
-import sys
 import pymysql.cursors
 import time
 
@@ -23,14 +22,19 @@ data = {
 }
 session_response = requests.post(f'{baseUrl}/web/session/authenticate', json=data)
 if session_response.status_code != 200:
-    logging.error('请求失败，程序退出')
-    sys.exit(1)
+    logging.error('请求失败，重试中')
+    time.sleep(10)
+    session_response = requests.post(f'{baseUrl}/web/session/authenticate', json=data)
+    if session_response.status_code != 200:
+        logging.error('请求失败，重试中')
+        time.sleep(10)
+    os.exit(1)
 session_data = session_response.json()
 if session_data['result'] and session_response.cookies['session_id']:
     session_id = session_response.cookies['session_id']
 else:
     logging.error('登录失败')
-    sys.exit(1)
+    os.exit(1)
 
 headers = {
     'Content-Type': 'application/json',
@@ -256,8 +260,16 @@ def find_salesDetailReport(find_num):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('请求失败，程序退出')
-        sys.exit(1)
+        logging.error('请求失败，重试中')
+        time.sleep(10)
+        response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
+        if response.status_code != 200:
+            logging.error('请求失败，重试中')
+            time.sleep(10)
+            response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
+            if response.status_code != 200:
+                logging.error('请求失败')
+                os.exit(1)
     find_salesDetailReport_data = response.json()['result']['records']
 
     # 初始化列表
@@ -580,8 +592,14 @@ def find_saleOrderNumber_id(sale_order_number):
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
         logging.error('请求失败，重试中')
-        time.sleep(3)
-        sys.exit(1)
+        time.sleep(10)
+        response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
+        if response.status_code != 200:
+            logging.error('请求失败，重试中')
+            time.sleep(10)
+            if response.status_code != 200:
+                logging.error('请求失败')
+                os.exit(1)
     id = response.json()['result']['records'][0]['id']
     return id
 
@@ -1029,8 +1047,16 @@ def find_saleOrderNumber_phone(id):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('请求失败，程序退出')
-        sys.exit(1)
+        logging.error('请求失败，重试中')
+        time.sleep(10)
+        response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
+        if response.status_code != 200:
+            logging.error('请求失败，重试中')
+            time.sleep(10)
+            response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
+            if response.status_code != 200:
+                logging.error('请求失败')
+                os.exit(1)
     # 客户电话
     phone = response.json()['result'][0]['phone']
     return phone
