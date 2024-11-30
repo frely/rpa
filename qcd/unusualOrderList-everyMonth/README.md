@@ -11,7 +11,8 @@ docker run --rm \
     -e odoo_host="http://localhost" \
     -e odoo_db=odoo \
     -e odoo_username=read_only_user \
-    -e rpa_host="http://localhost" \
+    -e odoo_userpasswd=passwd \
+    -e rpa_host="localhost" \
     -e rpa_port=3306 \
     -e rpa_db=db \
     -e rpa_user=user \
