@@ -5,12 +5,30 @@ import pandas as pd
 import logging
 import pymysql.cursors
 import time
+import arrow
 
 logging.basicConfig(level=logging.INFO, encoding='utf-8', format='%(levelname)s:%(asctime)s:%(message)s')
 
-baseUrl = os.getenv("odoo_host")
+# 初始化表格列表
+sale_order_number_list = []
+sale_type_list = []
+sale_state_list = []
+sale_date_list = []
+salesperson_list = []
+channel_id_list = []
+level1_department_id_list = []
+level2_department_id_list = []
+level3_department_id_list = []
+performance_department_id_list = []
+is_apportionment_list = []
+partner_name_list = []
+lv2_product_category_list = []
+performance_list = []
+is_refund_list = []
+phone_list = []
 
 # 获取cookie
+baseUrl = os.getenv("odoo_host")
 data = {
     'jsonrpc': '2.0',
     'method': 'call',
@@ -272,23 +290,6 @@ def find_salesDetailReport(find_num):
                 os.exit(1)
     find_salesDetailReport_data = response.json()['result']['records']
 
-    # 初始化列表
-    sale_order_number = []
-    sale_type = []
-    sale_state = []
-    sale_date = []
-    salesperson = []
-    channel_id = []
-    level1_department_id = []
-    level2_department_id = []
-    level3_department_id = []
-    performance_department_id = []
-    is_apportionment = []
-    partner_name = []
-    lv2_product_category = []
-    performance = []
-    is_refund = []
-
     # 英转中
     # 销售单类型
     sale_type_dict = {
@@ -321,99 +322,79 @@ def find_salesDetailReport(find_num):
     }
 
     for i in find_salesDetailReport_data:
-        try:
-            sale_order_number.append(i['sale_order_number'])
-        except:
-            sale_order_number.append("无")
-        try:
-            if i['sale_type'] in sale_type_dict:
-                sale_type.append(sale_type_dict[i['sale_type']])
-            else:
-                sale_type.append(i['sale_type'])
-        except:
-            sale_type.append("无")
-        try:
-            if i['sale_state'] in sale_state_dict:
-                sale_state.append(sale_state_dict[i['sale_state']])
-            else:
-                sale_state.append(i['sale_state'])
-        except:
-            sale_state.append("无")
-        try:
-            sale_date.append(i['sale_date'])
-        except:
-            sale_date.append("无")
-        try:
-            salesperson.append(i['salesperson']['display_name'])
-        except:
-            salesperson.append("无")
-        try:
-            channel_id.append(i['channel_id']['display_name'])
-        except:
-            channel_id.append("无")
-        try:
-            level1_department_id.append(i['level1_department_id']['display_name'])
-        except:
-            level1_department_id.append("无")
-        try:
-            level2_department_id.append(i['level2_department_id']['display_name'])
-        except:
-            level2_department_id.append("无")
-        try:
-            level3_department_id.append(i['level3_department_id']['display_name'])
-        except:
-            level3_department_id.append("无")
-        try:
-            performance_department_id.append(i['performance_department_id']['display_name'])
-        except:
-            performance_department_id.append("无")
-        try:
-            if i['is_apportionment'] in is_apportionment_dict:
-                is_apportionment.append(is_apportionment_dict[i['is_apportionment']])
-            else:
-                is_apportionment.append(i['is_apportionment'])
-        except:
-            is_apportionment.append("无")
-        try:
-            partner_name.append(i['partner_name'])
-        except:
-            partner_name.append("无")
-        try:
-            lv2_product_category.append(i['lv2_product_category']['display_name'])
-        except:
-            lv2_product_category.append("无")
-        try:
-            performance.append(i['performance'])
-        except:
-            performance.append("无")
-        try:
-            if i['is_refund'] in is_refund_dict:
-                is_refund.append(is_refund_dict[i['is_refund']])
-            else:
-                is_refund.append(i['is_refund'])
-        except:
-            is_refund.append("无")
-
-    df = pd.DataFrame(
-        {"销售单号": sale_order_number,
-         "销售单类型": sale_type,
-         "单据状态": sale_state,
-         "销售日期": sale_date,
-         "销售员": salesperson,
-         "渠道": channel_id,
-         "一级部门": level1_department_id,
-         "二级部门": level2_department_id,
-         "三级部门": level3_department_id,
-         "业绩所属门店": performance_department_id,
-         "是否分摊": is_apportionment,
-         "客户名称": partner_name,
-         #"客户电话": [4, 5, 6],
-         "二级类别": lv2_product_category,
-         "实际业绩": performance,
-         "是否退款": is_refund,
-        },
-    )
-    return df, sale_order_number
+        if i['level1_department_id']['display_name'] == "线下事业部" or i['level1_department_id']['display_name'] == "线上事业部":
+            try:
+                sale_order_number_list.append(i['sale_order_number'])
+            except:
+                sale_order_number_list.append("无")
+            try:
+                if i['sale_type'] in sale_type_dict:
+                    sale_type_list.append(sale_type_dict[i['sale_type']])
+                else:
+                    sale_type_list.append(i['sale_type'])
+            except:
+                sale_type_list.append("无")
+            try:
+                if i['sale_state'] in sale_state_dict:
+                    sale_state_list.append(sale_state_dict[i['sale_state']])
+                else:
+                    sale_state_list.append(i['sale_state'])
+            except:
+                sale_state_list.append("无")
+            try:
+                sale_date_list.append(i['sale_date'])
+            except:
+                sale_date_list.append("无")
+            try:
+                salesperson_list.append(i['salesperson']['display_name'])
+            except:
+                salesperson_list.append("无")
+            try:
+                channel_id_list.append(i['channel_id']['display_name'])
+            except:
+                channel_id_list.append("无")
+            try:
+                level1_department_id_list.append(i['level1_department_id']['display_name'])
+            except:
+                level1_department_id_list.append("无")
+            try:
+                level2_department_id_list.append(i['level2_department_id']['display_name'])
+            except:
+                level2_department_id_list.append("无")
+            try:
+                level3_department_id_list.append(i['level3_department_id']['display_name'])
+            except:
+                level3_department_id_list.append("无")
+            try:
+                performance_department_id_list.append(i['performance_department_id']['display_name'])
+            except:
+                performance_department_id_list.append("无")
+            try:
+                if i['is_apportionment'] in is_apportionment_dict:
+                    is_apportionment_list.append(is_apportionment_dict[i['is_apportionment']])
+                else:
+                    is_apportionment_list.append(i['is_apportionment'])
+            except:
+                is_apportionment_list.append("无")
+            try:
+                partner_name_list.append(i['partner_name'])
+            except:
+                partner_name_list.append("无")
+            try:
+                lv2_product_category_list.append(i['lv2_product_category']['display_name'])
+            except:
+                lv2_product_category_list.append("无")
+            try:
+                performance_list.append(i['performance'])
+            except:
+                performance_list.append("无")
+            try:
+                if i['is_refund'] in is_refund_dict:
+                    is_refund_list.append(is_refund_dict[i['is_refund']])
+                else:
+                    is_refund_list.append(i['is_refund'])
+            except:
+                is_refund_list.append("无")
 
 
 def find_saleOrderNumber_id(sale_order_number):
@@ -1061,7 +1042,31 @@ def find_saleOrderNumber_phone(id):
     phone = response.json()['result'][0]['phone']
     return phone
 
-def find_sql():
+def find_customerInfo_sql(sql_num):
+    connection = pymysql.connect(host=os.getenv('rpa_host'),
+                                port=int(os.getenv('rpa_port')),
+                                user=os.getenv('rpa_user'),
+                                password=os.getenv('rpa_passwd'),
+                                database=os.getenv('rpa_db'),
+                                charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+    
+    if sql_num == 1:
+        with connection:
+            with connection.cursor() as cursor:
+                sql = "SELECT `客户电话` FROM `云客客户表`"
+                cursor.execute(sql)
+                return cursor.fetchall()
+
+    if sql_num == 2:
+        with connection:
+            with connection.cursor() as cursor:
+                sql = "SELECT `客户微信ID`, `客户电话` FROM `云客客户表`"
+                cursor.execute(sql)
+                return cursor.fetchall()
+
+
+def find_customerWechet_sql(phone):
     connection = pymysql.connect(host=os.getenv('rpa_host'),
                                 port=int(os.getenv('rpa_port')),
                                 user=os.getenv('rpa_user'),
@@ -1072,50 +1077,98 @@ def find_sql():
     
     with connection:
         with connection.cursor() as cursor:
-            sql = "SELECT `客户电话` FROM `云客客户表`"
-            cursor.execute(sql)
-            result = cursor.fetchall()
-            return result
+            sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s"
+            cursor.execute(sql, (phone))
+            return cursor.fetchall()
 
+def find_customerMsg_sql(wechetId, time_range_start, time_range_stop):
+    connection = pymysql.connect(host=os.getenv('rpa_host'),
+                                port=int(os.getenv('rpa_port')),
+                                user=os.getenv('rpa_user'),
+                                password=os.getenv('rpa_passwd'),
+                                database=os.getenv('rpa_db'),
+                                charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+    with connection:
+        with connection.cursor() as cursor:
+            sql = "SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
+            cursor.execute(sql, (wechetId, time_range_start, time_range_stop))
+            result = cursor.fetchall()
+            if len(result) == 0:
+                return "no"
+            else:
+                return "yes"
 
 def run():
     logging.info("执行中,请等待...")
-    # 查询订单
-
     # 设置最大查询数: 默认10000
     find_num = 10000
-    find_salesDetailReport_data = find_salesDetailReport(find_num)
 
     # 获取订单中的客户电话
-    phone_list = []
-    for i in find_salesDetailReport_data[1]:
+    find_salesDetailReport(find_num)
+    for i in sale_order_number_list:
         try:
             id = find_saleOrderNumber_id(i)
         except:
-            #logging.warning(f"查询订单无id: {i}")
-            phone_list.append("无")
+            phone_list.append("")
             continue
         phone = find_saleOrderNumber_phone(id)
         phone_list.append(phone)
-    find_salesDetailReport_data[0]["客户电话"] = phone_list
 
-    # 查询云客客户电话列表
-    sql_list = find_sql()
+    df = pd.DataFrame(
+        {"销售单号": sale_order_number_list,
+        "销售单类型": sale_type_list,
+        "单据状态": sale_state_list,
+        "销售日期": sale_date_list,
+        "销售员": salesperson_list,
+        "渠道": channel_id_list,
+        "一级部门": level1_department_id_list,
+        "二级部门": level2_department_id_list,
+        "三级部门": level3_department_id_list,
+        "业绩所属门店": performance_department_id_list,
+        "是否分摊": is_apportionment_list,
+        "客户名称": partner_name_list,
+        "客户电话": phone_list,
+        "二级类别": lv2_product_category_list,
+        "实际业绩": performance_list,
+        "是否退款": is_refund_list,
+        },
+    )
     
-    # 排除正常的订单
+    # 查询云客客户电话列表
+    customer_phone_sql_list = find_customerInfo_sql(1)
+    
+    ## 排除正常订单
     num = 0
     drop_list = []
-    for i in phone_list:
-        data = "{'客户电话': " + i + "}"
-        if data in sql_list:
-            drop_list.append(num)
-            print(num)
+
+    # 查询云客客户微信列表
+    customer_wechet_phone_sql_list = find_customerInfo_sql(2)
+    for sale_date, phone in zip(sale_date_list, phone_list):
+        if phone == "":
+            continue
+        # 判断是否电话是否在云客中存在
+        if {'客户电话': phone} in customer_phone_sql_list:
+            # 查询电话对应的微信id
+            wechetId_list = find_customerWechet_sql(phone)
+            # 判断是否存在聊天记录
+            if len(wechetId_list) == 0:
+                continue
+            msg_list = []
+            for i in wechetId_list:
+                wechetId = i['客户微信ID']
+                time_range_start = arrow.get(sale_date + "T23:59:59.999999+08:00").shift(days=-3).format('YYYY-MM-DD HH:mm:ss')
+                time_range_stop = sale_date + "T23:59:59.999999+08:00".format('YYYY-MM-DD HH:mm:ss')
+                print("查询聊天记录: 手机号: " + phone + " 微信id: " + wechetId + " 销售时间:" + sale_date)
+                msg_list.append(find_customerMsg_sql(wechetId, time_range_start, time_range_stop))
+            if "yes" in msg_list:
+                print("聊天记录存在")
+                drop_list.append(num)
         num += num
     
     # 删除正常的数据
-    pd = find_salesDetailReport_data[0].drop(drop_list)
-
-    pd.to_excel('销售明细报表异常订单.xlsx', index=False)
+    df = df.drop(drop_list)
+    df.to_excel('销售明细报表异常订单.xlsx', index=False)
     logging.info("程序执行完毕")
 
 if __name__ == '__main__':
