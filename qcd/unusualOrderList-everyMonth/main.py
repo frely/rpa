@@ -2,12 +2,11 @@ import os
 import requests
 import json
 import pandas as pd
-import logging
 import pymysql.cursors
 import time
 import arrow
-
-logging.basicConfig(level=logging.INFO, encoding='utf-8', format='%(levelname)s:%(asctime)s:%(message)s')
+import logging
+logging.basicConfig(level=logging.INFO)
 
 # 初始化表格列表
 sale_order_number_list = []
@@ -40,18 +39,18 @@ data = {
 }
 session_response = requests.post(f'{baseUrl}/web/session/authenticate', json=data)
 if session_response.status_code != 200:
-    logging.error('请求失败，重试中')
+    logging.info('请求失败，重试中')
     time.sleep(10)
     session_response = requests.post(f'{baseUrl}/web/session/authenticate', json=data)
     if session_response.status_code != 200:
-        logging.error('请求失败，重试中')
+        logging.info('请求失败，重试中')
         time.sleep(10)
     os.exit(1)
 session_data = session_response.json()
 if session_data['result'] and session_response.cookies['session_id']:
     session_id = session_response.cookies['session_id']
 else:
-    logging.error('登录失败')
+    logging.info('登录失败')
     os.exit(1)
 
 headers = {
@@ -278,19 +277,20 @@ def find_salesDetailReport(find_num):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('请求失败，重试中')
+        logging.info('请求失败，重试中')
         time.sleep(10)
         response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
         if response.status_code != 200:
-            logging.error('请求失败，重试中')
+            logging.info('请求失败，重试中')
             time.sleep(10)
             response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
             if response.status_code != 200:
-                logging.error('请求失败')
+                logging.info('请求失败')
                 os.exit(1)
     find_salesDetailReport_data = response.json()['result']['records']
 
-    # 英转中
+    ## 英转中
+    logging.info("数据获取完成，开始英转中")
     # 销售单类型
     sale_type_dict = {
         "agent_sale": "代理单",
@@ -572,14 +572,14 @@ def find_saleOrderNumber_id(sale_order_number):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('请求失败，重试中')
+        logging.info('请求失败，重试中')
         time.sleep(10)
         response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
         if response.status_code != 200:
-            logging.error('请求失败，重试中')
+            logging.info('请求失败，重试中')
             time.sleep(10)
             if response.status_code != 200:
-                logging.error('请求失败')
+                logging.info('请求失败')
                 os.exit(1)
     id = response.json()['result']['records'][0]['id']
     return id
@@ -1028,21 +1028,24 @@ def find_saleOrderNumber_phone(id):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.error('请求失败，重试中')
+        logging.info('请求失败，重试中')
         time.sleep(10)
         response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
         if response.status_code != 200:
-            logging.error('请求失败，重试中')
+            logging.info('请求失败，重试中')
             time.sleep(10)
             response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
             if response.status_code != 200:
-                logging.error('请求失败')
+                logging.info('请求失败')
                 os.exit(1)
     # 客户电话
     phone = response.json()['result'][0]['phone']
     return phone
 
-def find_customerInfo_sql(sql_num):
+def find_salesperson_wechet_sql(salesperson):
+    """
+    SELECT `员工姓名`, `员工微信ID` FROM `云客员工微信列表视图` WHERE `员工微信ID`=%s
+    """
     connection = pymysql.connect(host=os.getenv('rpa_host'),
                                 port=int(os.getenv('rpa_port')),
                                 user=os.getenv('rpa_user'),
@@ -1050,38 +1053,17 @@ def find_customerInfo_sql(sql_num):
                                 database=os.getenv('rpa_db'),
                                 charset='utf8mb4',
                                 cursorclass=pymysql.cursors.DictCursor)
-    
-    if sql_num == 1:
-        with connection:
-            with connection.cursor() as cursor:
-                sql = "SELECT `客户电话` FROM `云客客户表`"
-                cursor.execute(sql)
-                return cursor.fetchall()
-
-    if sql_num == 2:
-        with connection:
-            with connection.cursor() as cursor:
-                sql = "SELECT `客户微信ID`, `客户电话` FROM `云客客户表`"
-                cursor.execute(sql)
-                return cursor.fetchall()
-
-
-def find_customerWechet_sql(phone):
-    connection = pymysql.connect(host=os.getenv('rpa_host'),
-                                port=int(os.getenv('rpa_port')),
-                                user=os.getenv('rpa_user'),
-                                password=os.getenv('rpa_passwd'),
-                                database=os.getenv('rpa_db'),
-                                charset='utf8mb4',
-                                cursorclass=pymysql.cursors.DictCursor)
-    
     with connection:
         with connection.cursor() as cursor:
-            sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s"
-            cursor.execute(sql, (phone))
+            sql = "SELECT `员工姓名`, `员工微信ID` FROM `云客员工微信列表视图` WHERE `员工姓名`=%s"
+            cursor.execute(sql, (salesperson))
             return cursor.fetchall()
 
-def find_customerMsg_sql(wechetId, time_range_start, time_range_stop):
+
+def find_customer_wechetId_sql(find_customer_phone, find_staff_wechetId):
+    """
+    SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s AND `销售微信ID`=%s
+    """
     connection = pymysql.connect(host=os.getenv('rpa_host'),
                                 port=int(os.getenv('rpa_port')),
                                 user=os.getenv('rpa_user'),
@@ -1091,8 +1073,44 @@ def find_customerMsg_sql(wechetId, time_range_start, time_range_stop):
                                 cursorclass=pymysql.cursors.DictCursor)
     with connection:
         with connection.cursor() as cursor:
-            sql = "SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
-            cursor.execute(sql, (wechetId, time_range_start, time_range_stop))
+            sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s AND `销售微信ID`=%s"
+            cursor.execute(sql, (find_customer_phone, find_staff_wechetId))
+            return cursor.fetchall()
+            
+
+def find_customer_phone_sql():
+    """
+    SELECT `客户电话` FROM `云客客户表`
+    """
+    connection = pymysql.connect(host=os.getenv('rpa_host'),
+                                port=int(os.getenv('rpa_port')),
+                                user=os.getenv('rpa_user'),
+                                password=os.getenv('rpa_passwd'),
+                                database=os.getenv('rpa_db'),
+                                charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+    with connection:
+        with connection.cursor() as cursor:
+            sql = "SELECT `客户电话` FROM `云客客户表`"
+            cursor.execute(sql)
+            return cursor.fetchall()
+
+
+def find_customerMsg_sql(find_customer_wechetId, find_salesperson_wechetID, time_range_start, time_range_stop):
+    """
+    SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `员工微信ID`=%s AND `消息时间` BETWEEN %s AND %s
+    """
+    connection = pymysql.connect(host=os.getenv('rpa_host'),
+                                port=int(os.getenv('rpa_port')),
+                                user=os.getenv('rpa_user'),
+                                password=os.getenv('rpa_passwd'),
+                                database=os.getenv('rpa_db'),
+                                charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+    with connection:
+        with connection.cursor() as cursor:
+            sql = "SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `员工微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
+            cursor.execute(sql, (find_customer_wechetId, find_salesperson_wechetID, time_range_start, time_range_stop))
             result = cursor.fetchall()
             if len(result) == 0:
                 return "no"
@@ -1134,36 +1152,56 @@ def run():
         "是否退款": is_refund_list,
         },
     )
-    
-    # 查询云客客户电话列表
-    customer_phone_sql_list = find_customerInfo_sql(1)
-    
+
+
     ## 排除正常订单
     num = 0
     drop_list = []
+    msg_list = []
 
-    # 查询云客客户微信列表
-    customer_wechet_phone_sql_list = find_customerInfo_sql(2)
-    for sale_date, phone in zip(sale_date_list, phone_list):
+    # 判断销售名称及客户电话是否在云客中存在
+    for sale_order_number, sale_date, salesperson, level1_department_id, phone in zip(sale_order_number_list, sale_date_list, salesperson_list, level1_department_id_list, phone_list):
         if phone == "":
             continue
-        # 判断是否电话是否在云客中存在
-        if {'客户电话': phone} in customer_phone_sql_list:
-            # 查询电话对应的微信id
-            wechetId_list = find_customerWechet_sql(phone)
-            # 判断是否存在聊天记录
-            if len(wechetId_list) == 0:
-                continue
-            msg_list = []
-            for i in wechetId_list:
-                wechetId = i['客户微信ID']
-                time_range_start = arrow.get(sale_date + "T23:59:59.999999+08:00").shift(days=-3).format('YYYY-MM-DD HH:mm:ss')
-                time_range_stop = sale_date + "T23:59:59.999999+08:00".format('YYYY-MM-DD HH:mm:ss')
-                print("查询聊天记录: 手机号: " + phone + " 微信id: " + wechetId + " 销售时间:" + sale_date)
-                msg_list.append(find_customerMsg_sql(wechetId, time_range_start, time_range_stop))
-            if "yes" in msg_list:
-                print("聊天记录存在")
-                drop_list.append(num)
+        # 对比销售人员名称和电话是否一致
+        if level1_department_id == "线下事业部":
+            logging.info("当前处理订单:", sale_order_number, level1_department_id, salesperson)
+            find_staff_wechetId_sql = find_salesperson_wechet_sql(salesperson)
+            if len(find_staff_wechetId_sql) != 0:
+                find_staff_wechetId = find_staff_wechetId_sql[0]['员工微信ID']
+                customer_wechetId = find_customer_wechetId_sql(phone, find_staff_wechetId)
+                if len(customer_wechetId) != 0:
+                    msg_list = []
+                    for i in customer_wechetId:
+                        customer_wechetId = i['客户微信ID']
+                        # 判断下单时间3天内是否存在聊天记录
+                        time_range_start = arrow.get(sale_date + "T23:59:59.999999+08:00").shift(days=-3).format('YYYY-MM-DD HH:mm:ss')
+                        time_range_stop = sale_date + "T23:59:59.999999+08:00".format('YYYY-MM-DD HH:mm:ss')
+                        #logging.info("查询线下事业部聊天记录: 手机号: " + phone + " 客户微信id: " + customer_wechetId + " 销售微信id: " + find_staff_wechetId + " 销售时间: " + sale_date)
+                        msg_list.append(find_customerMsg_sql(customer_wechetId, find_staff_wechetId, time_range_start, time_range_stop))
+                        if "yes" in msg_list:
+                            drop_list.append(num)
+
+        # 对比电话是否一致
+        if level1_department_id == "线上事业部":
+            logging.info("当前处理订单:", sale_order_number, level1_department_id, salesperson)
+            find_staff_wechetId_sql = find_salesperson_wechet_sql(salesperson)
+            if len(find_staff_wechetId_sql) != 0:
+                find_staff_wechetId = find_staff_wechetId_sql[0]['员工微信ID']
+                if {'客户电话': phone} in find_customer_phone_sql():
+                    customer_wechetId = find_customer_wechetId_sql(phone, find_staff_wechetId)
+                    if len(customer_wechetId) != 0:
+                        msg_list = []
+                        for i in customer_wechetId:
+                            customer_wechetId = i['客户微信ID']
+                            # 判断下单时间3天内是否存在聊天记录
+                            time_range_start = arrow.get(sale_date + "T23:59:59.999999+08:00").shift(days=-3).format('YYYY-MM-DD HH:mm:ss')
+                            time_range_stop = sale_date + "T23:59:59.999999+08:00".format('YYYY-MM-DD HH:mm:ss')
+                            #logging.info("查询线下事业部聊天记录: 手机号: " + phone + " 客户微信id: " + customer_wechetId + " 销售微信id: " + find_staff_wechetId + " 销售时间: " + sale_date)
+                            msg_list.append(find_customerMsg_sql(customer_wechetId, find_staff_wechetId, time_range_start, time_range_stop))
+                            if "yes" in msg_list:
+                                drop_list.append(num)
+
         num += num
     
     # 删除正常的数据
