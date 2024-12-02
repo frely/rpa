@@ -1056,7 +1056,7 @@ def find_saleOrderNumber_phone(id):
 
 def find_salesperson_wechet_sql(salesperson):
     """
-    SELECT `员工姓名`, `员工微信ID` FROM `云客员工微信列表视图` WHERE `员工微信ID`=%s
+    SELECT `员工姓名`, `员工微信ID` FROM `云客员工微信列表视图` WHERE `员工姓名`=%s
     """
     connection = pymysql.connect(host=os.getenv('rpa_host'),
                                 port=int(os.getenv('rpa_port')),
@@ -1082,7 +1082,7 @@ def find_customer_wechetId_sql(find_customer_phone, find_staff_wechetId):
                                 password=os.getenv('rpa_passwd'),
                                 database=os.getenv('rpa_db'),
                                 charset='utf8mb4',
-                                cursorclass=pymysql.cursors.DictCursor)
+                                cursorclass=pymysql.curssors.DictCursor)
     with connection:
         with connection.cursor() as cursor:
             sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s AND `销售微信ID`=%s"
@@ -1231,17 +1231,30 @@ def run():
                 abnormal_cause_list.append("无匹配的云客员工姓名")
                 print("无匹配的云客员工姓名")
             else:
-                find_staff_wechetId = find_staff_wechetId_sql[0]['员工微信ID']
+                find_list = [] # 销售人员可能会有多个微信号
+                for i in find_staff_wechetId_sql:
+                    find_staff_wechetId = i['员工微信ID']
 
-                # 查询销售订单中的客户电话与销售人员是否对应
-                customer_wechetId = find_customer_wechetId_sql(phone, find_staff_wechetId)
-                if len(customer_wechetId) == 0:
+                    # 查询销售订单中的客户电话与销售人员是否对应
+                    res = find_customer_wechetId_sql(phone, find_staff_wechetId)
+                    if len(res) == 0:
+                        find_list.append("no")
+                    else:
+                        find_list.append("yes")
+
+                # 如果不对应
+                if "yes" not in find_list:
                     abnormal_cause_list.append("无匹配的云客客户备注")
                     print("无匹配的云客客户备注")
+                    
+                # 如果对应
                 else:
                     msg_list = []
+                    customer_wechetId = find_customer_wechetId_only_sql(phone)
                     for i in customer_wechetId:
                         customer_wechetId = i['客户微信ID']
+                        for x in find_staff_wechetId_sql:
+                            find_staff_wechetId = x['员工微信ID']
 
                         # 判断下单时间3天内是否存在聊天记录
                         time_range_start = arrow.get(sale_date + "T00:00:00.000000+08:00").shift(days=-2).format('YYYY-MM-DD HH:mm:ss')
