@@ -1,4 +1,5 @@
 import os
+import sys
 import requests
 import json
 import pandas as pd
@@ -6,7 +7,7 @@ import pymysql.cursors
 import time
 import arrow
 import logging
-logging.basicConfig(level=logging.INFO)
+
 
 # 初始化表格列表
 sale_order_number_list = []
@@ -25,6 +26,8 @@ lv2_product_category_list = []
 performance_list = []
 is_refund_list = []
 phone_list = []
+abnormal_cause_list = []
+order_data_list = []
 
 # 获取cookie
 baseUrl = os.getenv("odoo_host")
@@ -39,19 +42,19 @@ data = {
 }
 session_response = requests.post(f'{baseUrl}/web/session/authenticate', json=data)
 if session_response.status_code != 200:
-    logging.info('请求失败，重试中')
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
     time.sleep(10)
     session_response = requests.post(f'{baseUrl}/web/session/authenticate', json=data)
     if session_response.status_code != 200:
-        logging.info('请求失败，重试中')
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
         time.sleep(10)
-    os.exit(1)
+    sys.exit(1)
 session_data = session_response.json()
 if session_data['result'] and session_response.cookies['session_id']:
     session_id = session_response.cookies['session_id']
 else:
-    logging.info('登录失败')
-    os.exit(1)
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '登录失败')
+    sys.exit(1)
 
 headers = {
     'Content-Type': 'application/json',
@@ -59,10 +62,10 @@ headers = {
 }
 
 
-def find_salesDetailReport(find_num):
+def find_salesDetailReport(find_num, order_data_start, order_data_stop):
     # 销售明细报表查询字段
     body = {
-    "id": 12,
+    "id": 8,
     "jsonrpc": "2.0",
     "method": "call",
     "params": {
@@ -98,7 +101,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "level2_department_id": {
@@ -106,7 +109,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "level3_department_id": {
@@ -114,7 +117,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "level4_department_id": {
@@ -122,7 +125,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "department_id": {
@@ -130,7 +133,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "performance_department_id": {
@@ -138,7 +141,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "country_code": {
@@ -161,7 +164,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "lv2_product_category": {
@@ -169,7 +172,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "lv3_product_category": {
@@ -177,7 +180,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "lv4_product_category": {
@@ -185,7 +188,7 @@ def find_salesDetailReport(find_num):
                 "display_name": {}
             },
             "context": {
-                "hierarchical_naming": 'false'
+                "hierarchical_naming": False
             }
             },
             "product_name": {},
@@ -253,8 +256,15 @@ def find_salesDetailReport(find_num):
             "allowed_company_ids": [
             12
             ],
-            "bin_size": 'true',
-            "hierarchical_naming": 'false',
+            "bin_size": True,
+            "params": {
+            "action": 1315,
+            "model": "sale.order.line.report",
+            "view_type": "list",
+            "cids": 12,
+            "menu_id": 256
+            },
+            "hierarchical_naming": False,
             "current_company_id": 12
         },
         "count_limit": 10001,
@@ -263,12 +273,12 @@ def find_salesDetailReport(find_num):
             [
             "sale_date",
             ">=",
-            "2024-10-01"
+            order_data_start
             ],
             [
             "sale_date",
             "<=",
-            "2024-10-31"
+            order_data_stop
             ]
         ]
         }
@@ -277,32 +287,36 @@ def find_salesDetailReport(find_num):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.info('请求失败，重试中')
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
         time.sleep(10)
         response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
         if response.status_code != 200:
-            logging.info('请求失败，重试中')
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
             time.sleep(10)
             response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order.line.report/web_search_read', headers=headers, data=json.dumps(body))
             if response.status_code != 200:
-                logging.info('请求失败')
-                os.exit(1)
+                print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败')
+                sys.exit(1)
     find_salesDetailReport_data = response.json()['result']['records']
+    if len(find_salesDetailReport_data) == 0:
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "请求数据失败")
+        sys.exit(1)
+        
 
     ## 英转中
-    logging.info("数据获取完成，开始英转中")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "数据获取完成，开始英转中")
     # 销售单类型
     sale_type_dict = {
-        "agent_sale": "代理单",
-        "agent_sale_replacement": "代理单换货",
-        "agent_sale_return": "代理单退货",
-        "giveaway_sale": "赠品单",
-        "online_promote_sale": "特促单",
+        #"agent_sale": "代理单",
+        #"agent_sale_replacement": "代理单换货",
+        #"agent_sale_return": "代理单退货",
+        #"giveaway_sale": "赠品单",
+        #"online_promote_sale": "特促单",
         "sale": "订单",
-        "sale_promotion": "订单促销",
-        "sale_replacement": "订单换货",
-        "sale_return": "订单退货",
-        "service_sale": "服务单",
+        #"sale_promotion": "订单促销",
+        #"sale_replacement": "订单换货",
+        #"sale_return": "订单退货",
+        #"service_sale": "服务单",
         }
     # 单据状态
     sale_state_dict = {
@@ -320,84 +334,82 @@ def find_salesDetailReport(find_num):
         "no": "否",
         "yes": "是",
     }
+    #
+    filter_list = [
+        "零售",
+        "直营",
+        "sale",
+    ]
 
     for i in find_salesDetailReport_data:
         if i['level1_department_id']['display_name'] == "线下事业部" or i['level1_department_id']['display_name'] == "线上事业部":
-            try:
-                sale_order_number_list.append(i['sale_order_number'])
-            except:
-                sale_order_number_list.append("无")
-            try:
-                if i['sale_type'] in sale_type_dict:
-                    sale_type_list.append(sale_type_dict[i['sale_type']])
-                else:
-                    sale_type_list.append(i['sale_type'])
-            except:
-                sale_type_list.append("无")
-            try:
-                if i['sale_state'] in sale_state_dict:
-                    sale_state_list.append(sale_state_dict[i['sale_state']])
-                else:
-                    sale_state_list.append(i['sale_state'])
-            except:
-                sale_state_list.append("无")
-            try:
-                sale_date_list.append(i['sale_date'])
-            except:
-                sale_date_list.append("无")
-            try:
-                salesperson_list.append(i['salesperson']['display_name'])
-            except:
-                salesperson_list.append("无")
-            try:
+            if i['channel_id']['display_name'] in filter_list and i['sale_type'] in filter_list:
                 channel_id_list.append(i['channel_id']['display_name'])
-            except:
-                channel_id_list.append("无")
-            try:
-                level1_department_id_list.append(i['level1_department_id']['display_name'])
-            except:
-                level1_department_id_list.append("无")
-            try:
-                level2_department_id_list.append(i['level2_department_id']['display_name'])
-            except:
-                level2_department_id_list.append("无")
-            try:
-                level3_department_id_list.append(i['level3_department_id']['display_name'])
-            except:
-                level3_department_id_list.append("无")
-            try:
-                performance_department_id_list.append(i['performance_department_id']['display_name'])
-            except:
-                performance_department_id_list.append("无")
-            try:
-                if i['is_apportionment'] in is_apportionment_dict:
-                    is_apportionment_list.append(is_apportionment_dict[i['is_apportionment']])
-                else:
-                    is_apportionment_list.append(i['is_apportionment'])
-            except:
-                is_apportionment_list.append("无")
-            try:
-                partner_name_list.append(i['partner_name'])
-            except:
-                partner_name_list.append("无")
-            try:
-                lv2_product_category_list.append(i['lv2_product_category']['display_name'])
-            except:
-                lv2_product_category_list.append("无")
-            try:
-                performance_list.append(i['performance'])
-            except:
-                performance_list.append("无")
-            try:
-                if i['is_refund'] in is_refund_dict:
-                    is_refund_list.append(is_refund_dict[i['is_refund']])
-                else:
-                    is_refund_list.append(i['is_refund'])
-            except:
-                is_refund_list.append("无")
+                sale_type_list.append(sale_type_dict[i['sale_type']])
+                try:
+                    sale_order_number_list.append(i['sale_order_number'])
+                except:
+                    sale_order_number_list.append("无")
+                try:
+                    if i['sale_state'] in sale_state_dict:
+                        sale_state_list.append(sale_state_dict[i['sale_state']])
+                    else:
+                        sale_state_list.append(i['sale_state'])
+                except:
+                    sale_state_list.append("无")
+                try:
+                    sale_date_list.append(i['sale_date'])
+                except:
+                    sale_date_list.append("无")
+                try:
+                    salesperson_list.append(i['salesperson']['display_name'])
+                except:
+                    salesperson_list.append("无")
+                try:
+                    level1_department_id_list.append(i['level1_department_id']['display_name'])
+                except:
+                    level1_department_id_list.append("无")
+                try:
+                    level2_department_id_list.append(i['level2_department_id']['display_name'])
+                except:
+                    level2_department_id_list.append("无")
+                try:
+                    level3_department_id_list.append(i['level3_department_id']['display_name'])
+                except:
+                    level3_department_id_list.append("无")
+                try:
+                    performance_department_id_list.append(i['performance_department_id']['display_name'])
+                except:
+                    performance_department_id_list.append("无")
+                try:
+                    if i['is_apportionment'] in is_apportionment_dict:
+                        is_apportionment_list.append(is_apportionment_dict[i['is_apportionment']])
+                    else:
+                        is_apportionment_list.append(i['is_apportionment'])
+                except:
+                    is_apportionment_list.append("无")
+                try:
+                    partner_name_list.append(i['partner_name'])
+                except:
+                    partner_name_list.append("无")
+                try:
+                    lv2_product_category_list.append(i['lv2_product_category']['display_name'])
+                except:
+                    lv2_product_category_list.append("无")
+                try:
+                    performance_list.append(i['performance'])
+                except:
+                    performance_list.append("无")
+                try:
+                    if i['is_refund'] in is_refund_dict:
+                        is_refund_list.append(is_refund_dict[i['is_refund']])
+                    else:
+                        is_refund_list.append(i['is_refund'])
+                except:
+                    is_refund_list.append("无")
 
 
-def find_saleOrderNumber_id(sale_order_number):
+def find_saleOrderNumber_id(sale_order_number, order_data_start, order_data_stop):
     # 销售订单查询
     body = {
     "id": 62,
@@ -541,12 +553,12 @@ def find_saleOrderNumber_id(sale_order_number):
             [
             "date_order",
             ">=",
-            "2024-10-01"
+            order_data_start
             ],
             [
             "date_order",
             "<=",
-            "2024-10-31"
+            order_data_stop
             ],
             "|",
             "|",
@@ -572,15 +584,15 @@ def find_saleOrderNumber_id(sale_order_number):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.info('请求失败，重试中')
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
         time.sleep(10)
         response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_search_read', headers=headers, data=json.dumps(body))
         if response.status_code != 200:
-            logging.info('请求失败，重试中')
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
             time.sleep(10)
             if response.status_code != 200:
-                logging.info('请求失败')
-                os.exit(1)
+                print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败')
+                sys.exit(1)
     id = response.json()['result']['records'][0]['id']
     return id
 
@@ -1028,16 +1040,16 @@ def find_saleOrderNumber_phone(id):
 
     response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
     if response.status_code != 200:
-        logging.info('请求失败，重试中')
+        print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
         time.sleep(10)
         response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
         if response.status_code != 200:
-            logging.info('请求失败，重试中')
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败，重试中')
             time.sleep(10)
             response = requests.post(f'{baseUrl}/web/dataset/call_kw/sale.order/web_read', headers=headers, data=json.dumps(body))
             if response.status_code != 200:
-                logging.info('请求失败')
-                os.exit(1)
+                print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '请求失败')
+                sys.exit(1)
     # 客户电话
     phone = response.json()['result'][0]['phone']
     return phone
@@ -1075,6 +1087,23 @@ def find_customer_wechetId_sql(find_customer_phone, find_staff_wechetId):
         with connection.cursor() as cursor:
             sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s AND `销售微信ID`=%s"
             cursor.execute(sql, (find_customer_phone, find_staff_wechetId))
+            return cursor.fetchall()
+
+def find_customer_wechetId_only_sql(find_customer_phone):
+    """
+    SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s
+    """
+    connection = pymysql.connect(host=os.getenv('rpa_host'),
+                                port=int(os.getenv('rpa_port')),
+                                user=os.getenv('rpa_user'),
+                                password=os.getenv('rpa_passwd'),
+                                database=os.getenv('rpa_db'),
+                                charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+    with connection:
+        with connection.cursor() as cursor:
+            sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s"
+            cursor.execute(sql, (find_customer_phone))
             return cursor.fetchall()
             
 
@@ -1117,16 +1146,42 @@ def find_customerMsg_sql(find_customer_wechetId, find_salesperson_wechetID, time
             else:
                 return "yes"
 
+def find_customerMsg_sql2(find_customer_wechetId, time_range_start, time_range_stop):
+    """
+    SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `员工微信ID`=%s AND `消息时间` BETWEEN %s AND %s
+    """
+    connection = pymysql.connect(host=os.getenv('rpa_host'),
+                                port=int(os.getenv('rpa_port')),
+                                user=os.getenv('rpa_user'),
+                                password=os.getenv('rpa_passwd'),
+                                database=os.getenv('rpa_db'),
+                                charset='utf8mb4',
+                                cursorclass=pymysql.cursors.DictCursor)
+    with connection:
+        with connection.cursor() as cursor:
+            sql = "SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
+            cursor.execute(sql, (find_customer_wechetId, time_range_start, time_range_stop))
+            result = cursor.fetchall()
+            if len(result) == 0:
+                return "no"
+            else:
+                return "yes"
+
 def run():
-    logging.info("执行中,请等待...")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "执行中,请等待...")
     # 设置最大查询数: 默认10000
     find_num = 10000
 
+    # 查询订单月份
+    order_data = "2024-11"
+    order_data_start = "2024-11-01"
+    order_data_stop = "2024-11-30"
+
     # 获取订单中的客户电话
-    find_salesDetailReport(find_num)
+    find_salesDetailReport(find_num, order_data_start, order_data_stop)
     for i in sale_order_number_list:
         try:
-            id = find_saleOrderNumber_id(i)
+            id = find_saleOrderNumber_id(i, order_data_start, order_data_stop)
         except:
             phone_list.append("")
             continue
@@ -1158,56 +1213,88 @@ def run():
     num = 0
     drop_list = []
     msg_list = []
+    find_customer_phone_list = find_customer_phone_sql()
 
-    # 判断销售名称及客户电话是否在云客中存在
+
     for sale_order_number, sale_date, salesperson, level1_department_id, phone in zip(sale_order_number_list, sale_date_list, salesperson_list, level1_department_id_list, phone_list):
         if phone == "":
-            continue
-        # 对比销售人员名称和电话是否一致
+            pass
+        """
+        查询销售订单中的客户微信
+        """
         if level1_department_id == "线下事业部":
-            logging.info("当前处理订单:", sale_order_number, level1_department_id, salesperson)
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "当前处理订单:", sale_order_number, level1_department_id, salesperson)
+
+            # 通过销售订单中的销售人员名称查询对应的微信ID
             find_staff_wechetId_sql = find_salesperson_wechet_sql(salesperson)
-            if len(find_staff_wechetId_sql) != 0:
+            if len(find_staff_wechetId_sql) == 0:
+                abnormal_cause_list.append("无匹配的云客员工姓名")
+                print("无匹配的云客员工姓名")
+            else:
                 find_staff_wechetId = find_staff_wechetId_sql[0]['员工微信ID']
+
+                # 查询销售订单中的客户电话与销售人员是否对应
                 customer_wechetId = find_customer_wechetId_sql(phone, find_staff_wechetId)
-                if len(customer_wechetId) != 0:
+                if len(customer_wechetId) == 0:
+                    abnormal_cause_list.append("无匹配的云客客户备注")
+                    print("无匹配的云客客户备注")
+                else:
                     msg_list = []
                     for i in customer_wechetId:
                         customer_wechetId = i['客户微信ID']
+
                         # 判断下单时间3天内是否存在聊天记录
-                        time_range_start = arrow.get(sale_date + "T23:59:59.999999+08:00").shift(days=-3).format('YYYY-MM-DD HH:mm:ss')
-                        time_range_stop = sale_date + "T23:59:59.999999+08:00".format('YYYY-MM-DD HH:mm:ss')
-                        #logging.info("查询线下事业部聊天记录: 手机号: " + phone + " 客户微信id: " + customer_wechetId + " 销售微信id: " + find_staff_wechetId + " 销售时间: " + sale_date)
+                        time_range_start = arrow.get(sale_date + "T00:00:00.000000+08:00").shift(days=-2).format('YYYY-MM-DD HH:mm:ss')
+                        time_range_stop = arrow.get(sale_date + "T23:59:59.999999+08:00").format('YYYY-MM-DD HH:mm:ss')
                         msg_list.append(find_customerMsg_sql(customer_wechetId, find_staff_wechetId, time_range_start, time_range_stop))
-                        if "yes" in msg_list:
-                            drop_list.append(num)
+                    if "yes" in msg_list:
+                        print("存在聊天记录")
+                        abnormal_cause_list.append("存在聊天记录")
+                        drop_list.append(num)
+                    else:
+                        abnormal_cause_list.append("销售订单3天内无云客聊天记录")
+                        print("销售订单3天内无云客聊天记录")
 
-        # 对比电话是否一致
         if level1_department_id == "线上事业部":
-            logging.info("当前处理订单:", sale_order_number, level1_department_id, salesperson)
-            find_staff_wechetId_sql = find_salesperson_wechet_sql(salesperson)
-            if len(find_staff_wechetId_sql) != 0:
-                find_staff_wechetId = find_staff_wechetId_sql[0]['员工微信ID']
-                if {'客户电话': phone} in find_customer_phone_sql():
-                    customer_wechetId = find_customer_wechetId_sql(phone, find_staff_wechetId)
-                    if len(customer_wechetId) != 0:
-                        msg_list = []
-                        for i in customer_wechetId:
-                            customer_wechetId = i['客户微信ID']
-                            # 判断下单时间3天内是否存在聊天记录
-                            time_range_start = arrow.get(sale_date + "T23:59:59.999999+08:00").shift(days=-3).format('YYYY-MM-DD HH:mm:ss')
-                            time_range_stop = sale_date + "T23:59:59.999999+08:00".format('YYYY-MM-DD HH:mm:ss')
-                            #logging.info("查询线下事业部聊天记录: 手机号: " + phone + " 客户微信id: " + customer_wechetId + " 销售微信id: " + find_staff_wechetId + " 销售时间: " + sale_date)
-                            msg_list.append(find_customerMsg_sql(customer_wechetId, find_staff_wechetId, time_range_start, time_range_stop))
-                            if "yes" in msg_list:
-                                drop_list.append(num)
+            print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "当前处理订单:", sale_order_number, level1_department_id, salesperson)
 
-        num += num
+            # 判断销售订单中的客户电话是否存在于云客客户表中
+            if {'客户电话': phone} not in find_customer_phone_list:
+                abnormal_cause_list.append("无匹配的云客客户备注")
+                print("无匹配的云客员工姓名")
+            else:
+                customer_wechetId_2 = find_customer_wechetId_only_sql(phone)
+                if len(customer_wechetId_2) == 0:
+                    abnormal_cause_list.append("无匹配的云客客户备注")
+                    print("无匹配的云客客户备注")
+                else:
+                    msg_list = []
+                    for i in customer_wechetId_2:
+                        customer_wechetId_2 = i['客户微信ID']
+
+                        # 判断下单时间3天内是否存在聊天记录
+                        time_range_start = arrow.get(sale_date + "T00:00:00.000000+08:00").shift(days=-2).format('YYYY-MM-DD HH:mm:ss')
+                        time_range_stop = arrow.get(sale_date + "T23:59:59.999999+08:00").format('YYYY-MM-DD HH:mm:ss')
+                        msg_list.append(find_customerMsg_sql2(customer_wechetId_2, time_range_start, time_range_stop))
+                    if "yes" in msg_list:
+                        print("存在聊天记录")
+                        abnormal_cause_list.append("存在聊天记录")
+                        drop_list.append(num)
+                    else:
+                        abnormal_cause_list.append("销售订单3天内无云客聊天记录")
+                        print("销售订单3天内无云客聊天记录")
+        num += 1
     
-    # 删除正常的数据
-    df = df.drop(drop_list)
+    if len(abnormal_cause_list) == 0:
+        df["异常备注"] = ""
+    else:
+        df["异常备注"] = abnormal_cause_list
+        # 删除正常的数据
+        df = df.drop(drop_list)
+    df["月份"] = order_data
+
     df.to_excel('销售明细报表异常订单.xlsx', index=False)
-    logging.info("程序执行完毕")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "程序执行完毕")
 
 if __name__ == '__main__':
     run()
