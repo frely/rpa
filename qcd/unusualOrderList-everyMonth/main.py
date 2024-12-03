@@ -29,6 +29,7 @@ phone_list = []
 abnormal_cause_list = []
 order_data_list = []
 
+## odoo配置
 # 获取cookie
 baseUrl = os.getenv("odoo_host")
 data = {
@@ -59,6 +60,14 @@ else:
 headers = {
     'Content-Type': 'application/json',
     'Cookie': f"session_id={session_id}",
+}
+
+
+## 云客配置
+yk_token = os.getenv('yk_token')
+yk_headers = {
+    'Content-Type': 'application/json',
+    'Cookie': yk_token,
 }
 
 
@@ -1054,101 +1063,10 @@ def find_saleOrderNumber_phone(id):
     phone = response.json()['result'][0]['phone']
     return phone
 
-def find_salesperson_wechet_sql(salesperson):
-    """
-    SELECT `员工姓名`, `员工微信ID` FROM `云客员工微信列表视图` WHERE `员工姓名`=%s
-    """
-    connection = pymysql.connect(host=os.getenv('rpa_host'),
-                                port=int(os.getenv('rpa_port')),
-                                user=os.getenv('rpa_user'),
-                                password=os.getenv('rpa_passwd'),
-                                database=os.getenv('rpa_db'),
-                                charset='utf8mb4',
-                                cursorclass=pymysql.cursors.DictCursor)
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "SELECT `员工姓名`, `员工微信ID` FROM `云客员工微信列表视图` WHERE `员工姓名`=%s"
-            cursor.execute(sql, (salesperson))
-            return cursor.fetchall()
 
-
-def find_customer_wechetId_sql(find_customer_phone, find_staff_wechetId):
+def find_customerMsg_sql(find_customer_wechetId, time_range_start, time_range_stop):
     """
-    SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s AND `销售微信ID`=%s
-    """
-    connection = pymysql.connect(host=os.getenv('rpa_host'),
-                                port=int(os.getenv('rpa_port')),
-                                user=os.getenv('rpa_user'),
-                                password=os.getenv('rpa_passwd'),
-                                database=os.getenv('rpa_db'),
-                                charset='utf8mb4',
-                                cursorclass=pymysql.curssors.DictCursor)
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s AND `销售微信ID`=%s"
-            cursor.execute(sql, (find_customer_phone, find_staff_wechetId))
-            return cursor.fetchall()
-
-def find_customer_wechetId_only_sql(find_customer_phone):
-    """
-    SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s
-    """
-    connection = pymysql.connect(host=os.getenv('rpa_host'),
-                                port=int(os.getenv('rpa_port')),
-                                user=os.getenv('rpa_user'),
-                                password=os.getenv('rpa_passwd'),
-                                database=os.getenv('rpa_db'),
-                                charset='utf8mb4',
-                                cursorclass=pymysql.cursors.DictCursor)
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "SELECT `客户微信ID` FROM `云客客户表` WHERE `客户电话`=%s"
-            cursor.execute(sql, (find_customer_phone))
-            return cursor.fetchall()
-            
-
-def find_customer_phone_sql():
-    """
-    SELECT `客户电话` FROM `云客客户表`
-    """
-    connection = pymysql.connect(host=os.getenv('rpa_host'),
-                                port=int(os.getenv('rpa_port')),
-                                user=os.getenv('rpa_user'),
-                                password=os.getenv('rpa_passwd'),
-                                database=os.getenv('rpa_db'),
-                                charset='utf8mb4',
-                                cursorclass=pymysql.cursors.DictCursor)
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "SELECT `客户电话` FROM `云客客户表`"
-            cursor.execute(sql)
-            return cursor.fetchall()
-
-
-def find_customerMsg_sql(find_customer_wechetId, find_salesperson_wechetID, time_range_start, time_range_stop):
-    """
-    SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `员工微信ID`=%s AND `消息时间` BETWEEN %s AND %s
-    """
-    connection = pymysql.connect(host=os.getenv('rpa_host'),
-                                port=int(os.getenv('rpa_port')),
-                                user=os.getenv('rpa_user'),
-                                password=os.getenv('rpa_passwd'),
-                                database=os.getenv('rpa_db'),
-                                charset='utf8mb4',
-                                cursorclass=pymysql.cursors.DictCursor)
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `员工微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
-            cursor.execute(sql, (find_customer_wechetId, find_salesperson_wechetID, time_range_start, time_range_stop))
-            result = cursor.fetchall()
-            if len(result) == 0:
-                return "no"
-            else:
-                return "yes"
-
-def find_customerMsg_sql2(find_customer_wechetId, time_range_start, time_range_stop):
-    """
-    SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `员工微信ID`=%s AND `消息时间` BETWEEN %s AND %s
+    SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `消息时间` BETWEEN %s AND %s
     """
     connection = pymysql.connect(host=os.getenv('rpa_host'),
                                 port=int(os.getenv('rpa_port')),
@@ -1161,11 +1079,8 @@ def find_customerMsg_sql2(find_customer_wechetId, time_range_start, time_range_s
         with connection.cursor() as cursor:
             sql = "SELECT `客户微信ID` FROM `云客聊天记录` WHERE `客户微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
             cursor.execute(sql, (find_customer_wechetId, time_range_start, time_range_stop))
-            result = cursor.fetchall()
-            if len(result) == 0:
-                return "no"
-            else:
-                return "yes"
+            return cursor.fetchall()
+            
 
 def run():
     print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "执行中,请等待...")
@@ -1213,8 +1128,8 @@ def run():
     num = 0
     drop_list = []
     msg_list = []
-    find_customer_phone_list = find_customer_phone_sql()
 
+    
 
     for sale_order_number, sale_date, salesperson, level1_department_id, phone in zip(sale_order_number_list, sale_date_list, salesperson_list, level1_department_id_list, phone_list):
         if phone == "":
@@ -1225,77 +1140,69 @@ def run():
         if level1_department_id == "线下事业部":
             print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "当前处理订单:", sale_order_number, level1_department_id, salesperson)
 
-            # 通过销售订单中的销售人员名称查询对应的微信ID
-            find_staff_wechetId_sql = find_salesperson_wechet_sql(salesperson)
-            if len(find_staff_wechetId_sql) == 0:
-                abnormal_cause_list.append("无匹配的云客员工姓名")
-                print("无匹配的云客员工姓名")
+            # 查询销售订单中的客户电话与销售人员是否对应
+            departmentId = "9A48CB9E3C76414DAAA60952B9DE4B0C" # 全部云客部门
+            friendRemark = phone # 客户手机号
+            realName = salesperson # 员工名称
+            url = f"http://yk.vertuonline.com/pc/wechatcount/friendsList?departmentId={departmentId}&friendRemark={friendRemark}&realName={realName}"
+            res = requests.post(url, headers=yk_headers)
+            if res.status_code != 200:
+                print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '云客请求失败，重试中')
+                time.sleep(10)
+                res = requests.post(url, headers=yk_headers)
+                if res.status_code != 200:
+                    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '云客请求失败，重试中')
+                    time.sleep(10)
+                    res = requests.post(url, headers=yk_headers)
+            if len(res.json()['data']['overviews']) == 0:
+                abnormal_cause_list.append("无匹配的销售人员和云客客户备注")
+                print("无匹配的销售人员和云客客户备注", friendRemark)
             else:
-                find_list = [] # 销售人员可能会有多个微信号
-                for i in find_staff_wechetId_sql:
-                    find_staff_wechetId = i['员工微信ID']
-
-                    # 查询销售订单中的客户电话与销售人员是否对应
-                    res = find_customer_wechetId_sql(phone, find_staff_wechetId)
-                    if len(res) == 0:
-                        find_list.append("no")
-                    else:
-                        find_list.append("yes")
-
-                # 如果不对应
-                if "yes" not in find_list:
-                    abnormal_cause_list.append("无匹配的云客客户备注")
-                    print("无匹配的云客客户备注")
-                    
-                # 如果对应
+                friendId = res.json()['data']['overviews'][0]['friendId']
+                # 判断下单时间3天内是否存在聊天记录
+                time_range_start = arrow.get(sale_date + "T00:00:00.000000+08:00").shift(days=-2).format('YYYY-MM-DD HH:mm:ss')
+                time_range_stop = arrow.get(sale_date + "T23:59:59.999999+08:00").format('YYYY-MM-DD HH:mm:ss')
+                msg_list = find_customerMsg_sql(friendId, time_range_start, time_range_stop)
+                if len(msg_list) != 0:
+                    print("存在聊天记录")
+                    abnormal_cause_list.append("存在聊天记录")
+                    drop_list.append(num)
                 else:
-                    msg_list = []
-                    customer_wechetId = find_customer_wechetId_only_sql(phone)
-                    for i in customer_wechetId:
-                        customer_wechetId = i['客户微信ID']
-                        for x in find_staff_wechetId_sql:
-                            find_staff_wechetId = x['员工微信ID']
-
-                        # 判断下单时间3天内是否存在聊天记录
-                        time_range_start = arrow.get(sale_date + "T00:00:00.000000+08:00").shift(days=-2).format('YYYY-MM-DD HH:mm:ss')
-                        time_range_stop = arrow.get(sale_date + "T23:59:59.999999+08:00").format('YYYY-MM-DD HH:mm:ss')
-                        msg_list.append(find_customerMsg_sql(customer_wechetId, find_staff_wechetId, time_range_start, time_range_stop))
-                    if "yes" in msg_list:
-                        print("存在聊天记录")
-                        abnormal_cause_list.append("存在聊天记录")
-                        drop_list.append(num)
-                    else:
-                        abnormal_cause_list.append("销售订单3天内无云客聊天记录")
-                        print("销售订单3天内无云客聊天记录")
+                    abnormal_cause_list.append("销售订单3天内无云客聊天记录")
+                    print("销售订单3天内无云客聊天记录", friendRemark, sale_date)
 
         if level1_department_id == "线上事业部":
             print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "当前处理订单:", sale_order_number, level1_department_id, salesperson)
 
             # 判断销售订单中的客户电话是否存在于云客客户表中
-            if {'客户电话': phone} not in find_customer_phone_list:
+            departmentId = "14D229166ABD4A2E9D7DC62F0903EA3A" # 线上事业部
+            friendRemark = phone # 客户手机号
+            url = f"http://yk.vertuonline.com/pc/wechatcount/friendsList?departmentId={departmentId}&friendRemark={friendRemark}"
+            res = requests.post(url, headers=yk_headers)
+            if res.status_code != 200:
+                print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '云客请求失败，重试中')
+                time.sleep(10)
+                res = requests.post(url, headers=yk_headers)
+                if res.status_code != 200:
+                    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), '云客请求失败，重试中')
+                    time.sleep(10)
+                    res = requests.post(url, headers=yk_headers)
+            if len(res.json()['data']['overviews']) == 0:
                 abnormal_cause_list.append("无匹配的云客客户备注")
-                print("无匹配的云客员工姓名")
+                print("无匹配的云客客户备注", friendRemark)
             else:
-                customer_wechetId_2 = find_customer_wechetId_only_sql(phone)
-                if len(customer_wechetId_2) == 0:
-                    abnormal_cause_list.append("无匹配的云客客户备注")
-                    print("无匹配的云客客户备注")
+                friendId = res.json()['data']['overviews'][0]['friendId']
+                # 判断下单时间3天内是否存在聊天记录
+                time_range_start = arrow.get(sale_date + "T00:00:00.000000+08:00").shift(days=-2).format('YYYY-MM-DD HH:mm:ss')
+                time_range_stop = arrow.get(sale_date + "T23:59:59.999999+08:00").format('YYYY-MM-DD HH:mm:ss')
+                msg_list = find_customerMsg_sql(friendId, time_range_start, time_range_stop)
+                if len(msg_list) != 0:
+                    print("存在聊天记录")
+                    abnormal_cause_list.append("存在聊天记录")
+                    drop_list.append(num)
                 else:
-                    msg_list = []
-                    for i in customer_wechetId_2:
-                        customer_wechetId_2 = i['客户微信ID']
-
-                        # 判断下单时间3天内是否存在聊天记录
-                        time_range_start = arrow.get(sale_date + "T00:00:00.000000+08:00").shift(days=-2).format('YYYY-MM-DD HH:mm:ss')
-                        time_range_stop = arrow.get(sale_date + "T23:59:59.999999+08:00").format('YYYY-MM-DD HH:mm:ss')
-                        msg_list.append(find_customerMsg_sql2(customer_wechetId_2, time_range_start, time_range_stop))
-                    if "yes" in msg_list:
-                        print("存在聊天记录")
-                        abnormal_cause_list.append("存在聊天记录")
-                        drop_list.append(num)
-                    else:
-                        abnormal_cause_list.append("销售订单3天内无云客聊天记录")
-                        print("销售订单3天内无云客聊天记录")
+                    abnormal_cause_list.append("销售订单3天内无云客聊天记录")
+                    print("销售订单3天内无云客聊天记录", friendRemark, sale_date)
         num += 1
     
     if len(abnormal_cause_list) == 0:
