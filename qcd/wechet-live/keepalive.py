@@ -7,7 +7,7 @@ def keepalive(wechet_cookie):
     """
     #防止cookie过期, 定时请求接口
     """
-    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "执行中, 请等待...")
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "keepalive执行中, 请等待...")
 
     wechet_cookie_list = []
     wechet_cookie_list.append(os.getenv("wechet_cookie_xiaochen"))
