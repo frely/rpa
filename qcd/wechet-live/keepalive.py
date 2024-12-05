@@ -11,6 +11,7 @@ def keepalive():
 
     wechet_cookie_list = []
     wechet_cookie_list.append(os.getenv("wechet_cookie_xiaochen"))
+    wechet_cookie_list.append(os.getenv("wechet_cookie_weitu"))
     
     for i in wechet_cookie_list:
         headers = {
