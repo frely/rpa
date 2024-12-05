@@ -3,7 +3,7 @@ import os
 import time
 import sys
 
-def keepalive(wechet_cookie):
+def keepalive():
     """
     #防止cookie过期, 定时请求接口
     """
