@@ -155,7 +155,7 @@ def run():
     end_time = time.strftime("%Y-%m-%d 23:59:59", time.localtime())
     end_time_unix = int(str(time.mktime(time.strptime(end_time,"%Y-%m-%d %H:%M:%S")))[0:-2])
     
-    print("查询日期范围:", start_time_unix, end_time_unix)
+    print("查询日期范围:", start_time, end_time)
     dict_list = getcheckindata(start_time_unix, end_time_unix)
     print("考勤信息:\n", dict_list)
     #living_id = get_living_id(start_time_unix, end_time_unix)
