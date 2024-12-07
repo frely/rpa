@@ -2,9 +2,17 @@ import requests
 import sys
 import os
 import time
+import pandas as pd
+
+
+# 初始化表格列表
+
+df_user_list = []  # 员工名称
+df_department_list = []  # 部门名称
+df_type_list = []  # 类型
+df_watch_time_list = []  # 观看时间
 
 headers = {
-        'Content-Type': 'application/json',
         'referer': 'https://work.weixin.qq.com/wework_admin/frame',
         'Cookie': os.getenv("wechet_cookie"),
     }
@@ -21,12 +29,10 @@ def getcheckindata(start_time_unix, end_time_unix):
         "start_time": start_time_unix,
         "end_time": end_time_unix,
         "start_cnt": 0,
-        "end_cnt": 10000,
+        "end_cnt": 3,
         "vid": 0,
         "status": 0,
         "record_type": 1,
-        "passing_context": "",
-        "isDailyInMonth": "",
         "tableType": "daily",
         "from": 0,
         "usenewpage": 1,
@@ -67,42 +73,6 @@ def getcheckindata(start_time_unix, end_time_unix):
         return getcheckindata_dict
 
 
-def getapprovalinfo():
-    """
-    批量获取审批单号
-    """
-    url = f'https://work.weixin.qq.com/oamng/approval_v2/commQueryData?template_id=C4WsQU8Ypaz6gYDzceiPTHnH6KoPxjKHVp7DgWbTG&smart_starttime={start_time_unix}&smart_endtime={end_time_unix}'
-    response = requests.get(url, headers=headers)
-    if response.status_code != 200:
-        print("请求接口失败, 重试中")
-        time.sleep(10)
-        response = requests.get(url, headers=headers)
-        if response.status_code != 200:
-            print("请求接口失败, 重试中")
-            time.sleep(10)
-            response = requests.get(url, headers=headers)
-            if response.status_code != 200:
-                print("请求接口失败", response.json())
-                sys.exit(1)
-    else:
-        res = response.json()
-        if res['data']['response']['errcode'] != 0:
-            print("接口请求失败")
-            sys.exit(1)
-        else:
-            list = res['data']['mngdata']
-            if len(list) == 0:
-                print("指定时间范围无请假信息")
-                sys.exit(0)
-            else:
-                for i in list:
-                    print("申请人", i['req_name'])
-                    print("部门", i['req_org'])
-                    print("审批状态", i['event']['sp_status'])  # 1：审批中 2：未通过
-                    print("申请内容", i['event']['comm_content']['detail'])
-                    print("====================================================")
-
-
 def get_living_id(start_time_unix, end_time_unix):
     """
     获取直播记录id
@@ -122,7 +92,7 @@ def get_living_id(start_time_unix, end_time_unix):
                 sys.exit(1)
     else:
         res = response.json()
-        return res['data']['items'][0]['living_id']  # 只需要查询每天第一个直播(晨会)
+        return res['data']['items']
 
 
 def get_liveroom(living_id):
@@ -151,15 +121,67 @@ def run():
 
     # 获取程序运行时当天日期范围
     start_time = time.strftime("%Y-%m-%d 00:00:00", time.localtime())
+    start_time = "2024-12-06 00:00:00"
     start_time_unix = int(str(time.mktime(time.strptime(start_time,"%Y-%m-%d %H:%M:%S")))[0:-2])
     end_time = time.strftime("%Y-%m-%d 23:59:59", time.localtime())
+    end_time = "2024-12-06 23:59:59"
     end_time_unix = int(str(time.mktime(time.strptime(end_time,"%Y-%m-%d %H:%M:%S")))[0:-2])
     
     print("查询日期范围:", start_time, end_time)
     dict_list = getcheckindata(start_time_unix, end_time_unix)
-    print("考勤信息:\n", dict_list)
-    #living_id = get_living_id(start_time_unix, end_time_unix)
-    #get_liveroom(living_id)
+
+    # 晨会信息查询
+    living_id_list = get_living_id(start_time_unix, end_time_unix)
+    if len(living_id_list) == 0:
+        print("没有查询到直播记录")
+    else:
+        living_id = living_id_list[-1]['living_id']  # 只需要查询每天第一个直播(晨会)
+        watch_list = get_liveroom(living_id)
+        if len(watch_list) == 0:
+            print("没有观看信息")
+        else:
+            for i in watch_list:
+
+                ## 判断晨会参与信息
+                print("==========================================================")
+                df_user_list.append(i['user_name'])
+
+                if i['user_name'] not in dict_list:
+                    try:
+                        print(i['user_name'], dict_list[i['user_name']]['部门'], '未参加晨会')
+                        df_department_list.append(dict_list[i['user_name']]['部门'])
+                        df_type_list.append('未参加晨会')
+                        df_watch_time_list.append('')
+                    except:
+                        print(i['user_name'], '不在部门信息中')
+                        df_department_list.append('')
+                        df_type_list.append('未参加晨会')
+                        df_watch_time_list.append('')
+                else:
+                    if dict_list[i['user_name']]['迟到时长'] != '--':
+                        print(i['user_name'], dict_list[i['user_name']]['部门'], '迟到:', dict_list[i['user_name']]['迟到时长'], '观看时间:', i['watch_time'])
+                        df_department_list.append(dict_list[i['user_name']]['部门'])
+                        df_type_list.append('迟到' + dict_list[i['user_name']]['迟到时长'])
+                        df_watch_time_list.append(i['watch_time'])
+                    else:
+                        print(i['user_name'], dict_list[i['user_name']]['部门'], '观看时间:', i['watch_time'])
+                        df_department_list.append(dict_list[i['user_name']]['部门'])
+                        df_type_list.append('正常')
+                        df_watch_time_list.append(i['watch_time'])
+
+    data_time = time.strftime("%Y-%m-%d", time.localtime())
+    df = pd.DataFrame({
+        '员工姓名': df_user_list,
+        '部门': df_department_list,
+        '类型': df_type_list,
+        '观看时间': df_watch_time_list,
+        '日期': data_time
+        },
+    )
+    df.to_excel(f'晨会直播数据[{data_time}].xlsx', index=False)
+
+    print(time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()), "程序执行完成")
+
 
 if __name__ == '__main__':
     run()
