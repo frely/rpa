@@ -66,41 +66,8 @@ def find_yk_going_msg_sql(staff_wechet_id, customer_wechet_id, push_msg_time, en
             sql = "SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
             cursor.execute(sql, (staff_wechet_id, customer_wechet_id, push_msg_time, end_time + " 23:59:59"))
             return cursor.fetchall()
-        
 
-def get_staff_name(staff_wechet_id):
-    """
-    SELECT `员工姓名` FROM `云客员工微信列表视图` WHERE `员工微信ID`=%s
-    """
-    connection = pymysql.connect(host=os.getenv('rpa_host'),
-                                port=int(os.getenv('rpa_port')),
-                                user=os.getenv('rpa_user'),
-                                password=os.getenv('rpa_passwd'),
-                                database=os.getenv('rpa_db'),
-                                charset='utf8mb4',
-                                cursorclass=pymysql.cursors.DictCursor)
-    with connection:
-        with connection.cursor() as cursor:
-            sql = "SELECT `员工姓名` FROM `云客员工微信列表视图` WHERE `员工微信ID`=%s"
-            cursor.execute(sql, (staff_wechet_id))
-            return cursor.fetchall()
-        
 
-def find_department_name_sql(staff_name):
-    """
-    SELECT 姓名, 一级部门, 二级部门, 三级部门 FROM 人力明细_明细 WHERE 人员状态='在职' AND 姓名=%s
-    """
-    sqlserver_host = os.getenv("sqlserver_host")
-    sqlserver_db = os.getenv("sqlserver_db")
-    sqlserver_user = os.getenv("sqlserver_user")
-    sqlserver_password = os.getenv("sqlserver_password")
-    DRIVER = "{ODBC Driver 18 for SQL Server}"
-    conn = pyodbc.connect(f'DRIVER={DRIVER};SERVER={sqlserver_host};DATABASE={sqlserver_db};UID={sqlserver_user};PWD={sqlserver_password};TrustServerCertificate=yes')
-    cursor = conn.cursor()
-    sql = f"SELECT 姓名, 一级部门, 二级部门, 三级部门 FROM 人力明细_明细 WHERE 人员状态='在职' AND 姓名='{staff_name}'"
-    cursor.execute(sql)
-    return cursor.fetchall()
-        
 def run():
     print(astime.strftime("%Y-%m-%d %H:%M:%S", astime.localtime()), "执行中,请等待...")
 
@@ -138,7 +105,7 @@ def run():
                 # 查询员工跟进信息
                 find_push_time = find_yk_push_msg_sql(i['员工微信ID'], i['客户微信ID'], i['意向消息内容'], start_time, end_time)
                 if len(find_push_time) == 0:
-                    print("没有查询到推送信息")
+                    print("没有查询到推送时间")
                     continue
                 else:
                     department_lv3_list.append(department_name)  # 添加部门信息
