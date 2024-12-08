@@ -108,6 +108,11 @@ def run():
     start_time = "2024-12-02"
     end_time = "2024-12-07"
 
+    # 读取员工信息
+    df_user_list = pd.read_csv('user_list.csv')
+    # 将 员工微信ID 设置为索引
+    df_user_list.set_index('员工微信ID', inplace=True)
+
     print("查询时间范围: ", start_time, end_time)
     
     yk_intenter_list = find_yk_intenter_sql(start_time, end_time)
@@ -122,59 +127,42 @@ def run():
                 print("跳过相同的微信ID")
                 continue
             else:
-                # 查询员工姓名
-                staff_name_list = get_staff_name(i['员工微信ID'])
-                if len(staff_name_list) == 0:
-                    print("未查询到员工姓名")
+                # 查询员工所在部门信息
+                try:
+                    employee = df_user_list.loc[i['员工微信ID']]
+                    department_name = employee['三级部门']
+                except:
+                    print('未找到该员工的微信ID')
                     continue
-                elif len(staff_name_list) > 1:
-                    print("查询到多个员工姓名", staff_name_list)
-                    sys.exit(1)
+
+                # 查询员工跟进信息
+                find_push_time = find_yk_push_msg_sql(i['员工微信ID'], i['客户微信ID'], i['意向消息内容'], start_time, end_time)
+                if len(find_push_time) == 0:
+                    print("没有查询到推送信息")
+                    continue
                 else:
-                    staff_name = staff_name_list[0]['员工姓名']
+                    department_lv3_list.append(department_name)  # 添加部门信息
+                    push_list.append(1)  # 推送数量+1
 
-                    # 查询员工所在部门信息
-                    department_name = find_department_name_sql(staff_name)
-                    if len(department_name) == 0:
-                        print("未查询到部门信息:", staff_name)
-                        continue
-                    elif len(department_name) > 1:
-                        print("查询到多个部门信息:", staff_name, department_name)
-                        sys.exit(1)
+                    push_msg_time = find_push_time[0]['消息时间']
+                    msg_time_list = find_yk_going_msg_sql(i['员工微信ID'], i['客户微信ID'], push_msg_time, end_time)
+                    if len(msg_time_list) <= 1:
+                        print("没有客服跟进信息")
+                        going_list.append(0)  # 跟进数量+0
+                        going_time_list.append(0)  # 跟进时效+0
                     else:
-                        print("员工信息:", department_name[0])
+                        going_time = msg_time_list[1]['消息时间'].strftime('%Y-%m-%d %H:%M:%S')
+                        print("客服跟进时间:", going_time)
 
-                        # 查询员工跟进信息
-                        find_push_time = find_yk_push_msg_sql(i['员工微信ID'], i['客户微信ID'], i['意向消息内容'], start_time, end_time)
-                        if len(find_push_time) == 0:
-                            print("没有查询到推送信息")
-                            continue
-                        elif department_name[0][3] == "":
-                            print("三级部门为空")
-                            continue
-                        else:
-                            department_lv3_list.append(department_name[0][3])  # 添加部门信息
-                            push_list.append(1)  # 推送数量+1
+                        # 查询跟进时效
+                        push_msg_time = datetime.strptime(str(push_msg_time), "%Y-%m-%d %H:%M:%S")
+                        going_time = datetime.strptime(str(going_time), "%Y-%m-%d %H:%M:%S")
 
-                            push_msg_time = find_push_time[0]['消息时间']
-                            msg_time_list = find_yk_going_msg_sql(i['员工微信ID'], i['客户微信ID'], push_msg_time, end_time)
-                            if len(msg_time_list) <= 1:
-                                print("没有客服跟进信息")
-                                going_list.append(0)  # 跟进数量+0
-                                going_time_list.append(0)  # 跟进时效+0
-                            else:
-                                going_time = msg_time_list[1]['消息时间'].strftime('%Y-%m-%d %H:%M:%S')
-                                print("客服跟进时间:", going_time)
-
-                                # 查询跟进时效
-                                push_msg_time = datetime.strptime(str(push_msg_time), "%Y-%m-%d %H:%M:%S")
-                                going_time = datetime.strptime(str(going_time), "%Y-%m-%d %H:%M:%S")
-
-                                time_difference = going_time - push_msg_time
-                                time_difference = time_difference.seconds/60 # 单位分钟
-                                print("时效:", time_difference)
-                                going_list.append(1)  # 跟进数量+1
-                                going_time_list.append(time_difference)  # 添加跟进时效
+                        time_difference = going_time - push_msg_time
+                        time_difference = time_difference.seconds/60 # 单位分钟
+                        print("时效:", time_difference)
+                        going_list.append(1)  # 跟进数量+1
+                        going_time_list.append(time_difference)  # 添加跟进时效
                                 
                         
 
