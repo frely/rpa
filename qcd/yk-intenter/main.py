@@ -2,7 +2,6 @@ import os
 import pymysql.cursors
 import sys
 from datetime import *
-import pyodbc
 import time as astime
 import pandas as pd
 
