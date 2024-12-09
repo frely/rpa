@@ -4,6 +4,9 @@ import sys
 from datetime import *
 import time as astime
 import pandas as pd
+import logging
+
+logging.basicConfig(level=logging.INFO, filename='app.log', encoding='utf-8', format='%(levelname)s:%(asctime)s:%(message)s')
 
 
 # 初始化数据列表
@@ -68,7 +71,7 @@ def find_yk_going_msg_sql(staff_wechet_id, customer_wechet_id, push_msg_time, en
 
 
 def run():
-    print(astime.strftime("%Y-%m-%d %H:%M:%S", astime.localtime()), "执行中,请等待...")
+    logging.info('执行中,请等待...')
 
     # 查询周一到周六的云客客户数据
     start_time = "2024-12-02"
@@ -79,18 +82,18 @@ def run():
     # 将 员工微信ID 设置为索引
     df_user_list.set_index('员工微信ID', inplace=True)
 
-    print("查询时间范围: ", start_time, end_time)
+    logging.info('查询时间范围: %s %s', start_time, end_time)
     
     yk_intenter_list = find_yk_intenter_sql(start_time, end_time)
     if len(yk_intenter_list) == 0:
-        print("没有查询到当前时间范围的意向客户数据: ", start_time, end_time)
+        logging.info('没有查询到当前时间范围的意向客户数据: %s %s', start_time, end_time)
         sys.exit(0)
     else:
         for i in yk_intenter_list:
-            print("=========================================================================================================")
-            print("当前查询的跟进信息:", i['员工微信ID'], i['客户微信ID'], i['意向消息内容'])
+            logging.info('===========================================================================')
+            logging.info('当前查询的跟进信息: %s %s %s', i['员工微信ID'], i['客户微信ID'], i['意向消息内容'])
             if i['员工微信ID'] == i['客户微信ID']:
-                print("跳过相同的微信ID")
+                logging.info('跳过相同的微信ID')
                 continue
             else:
                 # 查询员工所在部门信息
@@ -98,13 +101,13 @@ def run():
                     employee = df_user_list.loc[i['员工微信ID']]
                     department_name = employee['三级部门']
                 except:
-                    print('未找到该员工的微信ID')
+                    logging.info('未找到该员工的微信ID')
                     continue
 
                 # 查询员工跟进信息
                 find_push_time = find_yk_push_msg_sql(i['员工微信ID'], i['客户微信ID'], i['意向消息内容'], start_time, end_time)
                 if len(find_push_time) == 0:
-                    print("没有查询到推送时间")
+                    logging.info('没有查询到推送时间')
                     continue
                 else:
                     department_lv3_list.append(department_name)  # 添加部门信息
@@ -113,12 +116,12 @@ def run():
                     push_msg_time = find_push_time[0]['消息时间']
                     msg_time_list = find_yk_going_msg_sql(i['员工微信ID'], i['客户微信ID'], push_msg_time, end_time)
                     if len(msg_time_list) <= 1:
-                        print("没有客服跟进信息")
+                        logging.info('没有客服跟进信息')
                         going_list.append(0)  # 跟进数量+0
                         going_time_list.append(0)  # 跟进时效+0
                     else:
                         going_time = msg_time_list[1]['消息时间'].strftime('%Y-%m-%d %H:%M:%S')
-                        print("客服跟进时间:", going_time)
+                        logging.info('客服跟进时间: %s', going_time)
 
                         # 查询跟进时效
                         push_msg_time = datetime.strptime(str(push_msg_time), "%Y-%m-%d %H:%M:%S")
@@ -126,7 +129,7 @@ def run():
 
                         time_difference = going_time - push_msg_time
                         time_difference = time_difference.seconds/60 # 单位分钟
-                        print("时效:", time_difference)
+                        logging.info('时效: %s', time_difference)
                         going_list.append(1)  # 跟进数量+1
                         going_time_list.append(time_difference)  # 添加跟进时效
                                 
@@ -152,7 +155,7 @@ def run():
     result = result.reset_index()  # 重置索引
 
     result.to_excel(f'高意向顾客跟进数据[{start_time}][{end_time}].xlsx', index=False)
-    print(astime.strftime("%Y-%m-%d %H:%M:%S", astime.localtime()), "程序执行完毕")
+    logging.info('程序执行完毕')
 
 if __name__ == '__main__':
     run()
