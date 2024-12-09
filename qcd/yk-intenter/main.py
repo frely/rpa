@@ -15,6 +15,11 @@ push_list = []  # 高意向线索系统推送数量
 going_list = []  # 高意向线索门店跟进数量
 going_time_list = []  # 跟进时效
 
+# 客服维度跟进时间表格
+user_list = []  # 员工姓名
+push_time = []  # 系统推动时间
+going_time_time_list = []  # 客服跟进时间
+
 
 def find_yk_intenter_sql(start_time, end_time):
     """
@@ -54,7 +59,7 @@ def find_yk_push_msg_sql(staff_wechet_id, customer_wechet_id, msg, start_time, e
 
 def find_yk_going_msg_sql(staff_wechet_id, customer_wechet_id, push_msg_time, end_time):
     """
-    SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `消息内容`=%s AND `消息时间` BETWEEN %s AND %s
+    SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `发送人`='员工' AND `消息内容`=%s AND `消息时间` BETWEEN %s AND %s
     """
     connection = pymysql.connect(host=os.getenv('rpa_host'),
                                 port=int(os.getenv('rpa_port')),
@@ -65,7 +70,7 @@ def find_yk_going_msg_sql(staff_wechet_id, customer_wechet_id, push_msg_time, en
                                 cursorclass=pymysql.cursors.DictCursor)
     with connection:
         with connection.cursor() as cursor:
-            sql = "SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `消息时间` BETWEEN %s AND %s"
+            sql = "SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `发送人`='员工' AND `消息内容`=%s AND `消息时间` BETWEEN %s AND %s"
             cursor.execute(sql, (staff_wechet_id, customer_wechet_id, push_msg_time, end_time + " 23:59:59"))
             return cursor.fetchall()
 
@@ -100,6 +105,7 @@ def run():
                 try:
                     employee = df_user_list.loc[i['员工微信ID']]
                     department_name = employee['三级部门']
+                    user_name = employee['员工姓名']
                 except:
                     logging.info('未找到该员工的微信ID')
                     continue
@@ -111,16 +117,20 @@ def run():
                     continue
                 else:
                     department_lv3_list.append(department_name)  # 添加部门信息
+                    user_list.append(user_name)  # 添加员工姓名
                     push_list.append(1)  # 推送数量+1
 
                     push_msg_time = find_push_time[0]['消息时间']
+                    push_time.append(push_msg_time)  # 添加推送时间
                     msg_time_list = find_yk_going_msg_sql(i['员工微信ID'], i['客户微信ID'], push_msg_time, end_time)
-                    if len(msg_time_list) <= 1:
+                    if len(msg_time_list) == 0:
                         logging.info('没有客服跟进信息')
                         going_list.append(0)  # 跟进数量+0
                         going_time_list.append(0)  # 跟进时效+0
+                        going_time_time_list.append('未跟进')  # 添加跟进时间
                     else:
-                        going_time = msg_time_list[1]['消息时间'].strftime('%Y-%m-%d %H:%M:%S')
+                        going_time = msg_time_list[0]['消息时间'].strftime('%Y-%m-%d %H:%M:%S')
+                        going_time_time_list.append(going_time)  # 添加跟进时间
                         logging.info('客服跟进时间: %s', going_time)
 
                         # 查询跟进时效
@@ -133,7 +143,14 @@ def run():
                         going_list.append(1)  # 跟进数量+1
                         going_time_list.append(time_difference)  # 添加跟进时效
                                 
-                        
+    user_df = pd.DataFrame({
+        "员工姓名": user_list,
+        "三级部门": department_lv3_list,
+        "高意向顾客推送时间": push_time,
+        "员工跟进时间": going_time_time_list,
+        },
+    )
+    user_df.to_excel(f'高意向顾客员工跟进数据[{start_time}][{end_time}].xlsx', index=False)
 
     df = pd.DataFrame({
         "三级部门": department_lv3_list,
