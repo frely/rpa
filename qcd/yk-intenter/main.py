@@ -2,11 +2,19 @@ import os
 import pymysql.cursors
 import sys
 from datetime import *
-import time as astime
 import pandas as pd
 import logging
 
-logging.basicConfig(level=logging.INFO, filename='app.log', encoding='utf-8', format='%(levelname)s:%(asctime)s:%(message)s')
+# 配置日志
+logger = logging.getLogger("app")
+logger.setLevel(logging.INFO)  # 设置最低日志级别
+formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+file_handler = logging.FileHandler("app.log", encoding="utf-8")
+file_handler.setFormatter(formatter)
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(formatter)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 # 初始化数据列表
