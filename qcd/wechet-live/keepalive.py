@@ -62,6 +62,8 @@ def run():
     wechet_cookie_ycfz = os.getenv('wechet_cookie_ycfz')
     wechet_cookie_vertu = os.getenv('wechet_cookie_vertu')
 
+    wechet_push_key = os.getenv('wechet_cookie_vertu')
+
     list = [
         {'name': '成都微岛', 'cookie': wechet_cookie_weidao},
         {'name': '晓晨科技', 'cookie': wechet_cookie_xiaochen},
