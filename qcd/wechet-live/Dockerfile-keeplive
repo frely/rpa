@@ -10,4 +10,4 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY keepalive.py keepalive.py
 
-CMD ['python','keepalive.py']
+CMD ["python", "keepalive.py"]

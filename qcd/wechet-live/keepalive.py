@@ -2,6 +2,8 @@ import requests
 import os
 import time
 
+wechet_push_key = os.getenv('wechet_push_key')
+
 def keepalive(i):
     """
     #防止cookie过期, 定时请求接口
@@ -35,7 +37,7 @@ def wechet_push(msg):
     """
     异常微信推送
     """
-    url = 'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=b838aba9-d25c-48e1-987c-a8b98af80dcc'
+    url = f'https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key={wechet_push_key}'
 
     data = {
 	    "msgtype": "text",
@@ -61,8 +63,6 @@ def run():
     wechet_cookie_xiaochen = os.getenv('wechet_cookie_xiaochen')
     wechet_cookie_ycfz = os.getenv('wechet_cookie_ycfz')
     wechet_cookie_vertu = os.getenv('wechet_cookie_vertu')
-
-    wechet_push_key = os.getenv('wechet_cookie_vertu')
 
     list = [
         {'name': '成都微岛', 'cookie': wechet_cookie_weidao},
