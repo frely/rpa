@@ -44,7 +44,7 @@ def getcheckindata(headers):
         "start_time": check_start_time_unix,
         "end_time": check_end_time_unix,
         "start_cnt": 0,
-        "end_cnt": 3,
+        "end_cnt": 1000,
         "vid": 0,
         "status": 0,
         "record_type": 1,
@@ -70,25 +70,21 @@ def getcheckindata(headers):
         rows = response.json()['data']['list']['rows']
         for i in rows:
             dict = {}
-            print(i['cellMap']['statDate']['profile'])
-            if i['cellMap']['statDate']['profile']['msg'] == '休息日':
-                logger.info('今天是休息日')
-                sys.exit(0)
-            else:
-                dict["时间"] = i['cellMap']['statDate']['cntText']
-                dict["员工姓名"] = i['cellMap']['statName']['cntText']
-                dict["部门"] = i['cellMap']['departsName']['cntText']
-                dict["班次"] = i['cellMap']['checkintime']['cntText']
-                dict["最早打卡"] = i['cellMap']['earliestTime']['cntText']
-                dict["最晚打卡"] = i['cellMap']['lastestTime']['cntText']
-                dict["打卡次数"] = i['cellMap']['checkinCount']['cntText']
-                dict["校准状态"] = i['cellMap']['exceptionInfo']['cntList'][0]
-                dict["迟到时长"] = i['cellMap']['exceptionWorkOnDuration']['cntText']
-                dict["早退时长"] = i['cellMap']['exceptionWorkOffDuration']['cntText']
-                
-                # 获取需要参加晨会的名单, 校准状态: 正常, 迟到, 旷工              
-                if dict["校准状态"] == "正常" or dict["校准状态"][0:1] == "迟到" or dict["校准状态"][0:1] == "旷工":
-                    getcheckindata_dict[i['cellMap']['statName']['cntText']] = dict  # 字典{"员工姓名": 数据}
+            dict["时间"] = i['cellMap']['statDate']['cntText']
+            dict["员工姓名"] = i['cellMap']['statName']['cntText']
+            dict["部门"] = i['cellMap']['departsName']['cntText']
+            dict["班次"] = i['cellMap']['checkintime']['cntText']
+            dict["最早打卡"] = i['cellMap']['earliestTime']['cntText']
+            dict["最晚打卡"] = i['cellMap']['lastestTime']['cntText']
+            dict["打卡次数"] = i['cellMap']['checkinCount']['cntText']
+            dict["校准状态"] = i['cellMap']['exceptionInfo']['cntList'][0]
+            dict["迟到时长"] = i['cellMap']['exceptionWorkOnDuration']['cntText']
+            dict["早退时长"] = i['cellMap']['exceptionWorkOffDuration']['cntText']
+            
+            logger.info('%s', dict)
+            # 获取需要参加晨会的名单, 校准状态: 正常, 迟到, 旷工              
+            if dict["校准状态"] == "正常" or dict["校准状态"] == "核算中" or dict["校准状态"][0:1] == "迟到" or dict["校准状态"][0:1] == "旷工":
+                getcheckindata_dict[i['cellMap']['statName']['cntText']] = dict  # 字典{"员工姓名": 数据}
 
 
 def get_living_id(headers):
@@ -133,7 +129,6 @@ def get_liveroom(living_id, headers):
     else:
         return response.json()['data']['watch_list']
 
-
 def run():
     logger.info('执行中, 请等待...')
 
@@ -151,14 +146,22 @@ def run():
     
     logger.info("查询日期范围: %s %s", check_start_time, check_end_time)
 
+    # 晨会人员读取
+    check_user_list = {}  # 需要参加晨会的人员名单
+    df = pd.read_csv('线上参会名单.csv')
+    for row in df.itertuples():
+        check_user_list[row.姓名] = row.部门
+
     # 考勤信息查询
     for i in list:
         headers = {
             'referer': 'https://work.weixin.qq.com/wework_admin/frame',
             'Cookie': i['cookie'],
+            'Content-type': 'application/x-www-form-urlencoded',
         }
         logger.info('当前查询考勤公司: %s', i['name'])
         getcheckindata(headers)
+    logger.info("当前考勤总人数:%s", len(getcheckindata_dict))
 
     # 晨会信息查询
     living_id_list_num = []
@@ -189,38 +192,43 @@ def run():
             'Cookie': living_id_list_num[0]['cookie'],
         }
 
-        watch_list = get_liveroom(living_id, headers)
-        if len(watch_list) == 0:
+        watch_list_dict = {}
+        watch_list_json = get_liveroom(living_id, headers)
+        # 格式化数据方便后续判断
+        for i in watch_list_json:
+            watch_list_dict[i['user_name']] = i
+
+        if len(watch_list_dict) == 0:
             logger.error("没有观看信息")
             sys.exit(1)
         else:
-            for i in watch_list:
-                ## 判断晨会参与信息
+            for i in check_user_list:
+                # 判断晨会参与信息
                 logger.info("==========================================================")
-                df_user_list.append(i['user_name'])
-
-                if i['user_name'] not in getcheckindata_dict:
-                    try:
-                        logger.info('%s %s未参加晨会', i['user_name'], getcheckindata_dict[i['user_name']]['部门'])
-                        df_department_list.append(getcheckindata_dict[i['user_name']]['部门'])
-                        df_type_list.append('未参加晨会')
-                        df_watch_time_list.append('')
-                    except:
-                        logger.info('%s 不在部门信息中', i['user_name'])
-                        df_department_list.append('')
-                        df_type_list.append('未参加晨会')
-                        df_watch_time_list.append('')
+                user_name = i
+                if user_name not in getcheckindata_dict:
+                    logger.info('%s 请假中', i)
                 else:
-                    if getcheckindata_dict[i['user_name']]['迟到时长'] != '--':
-                        logger.info('%s %s 迟到: %s 观看时间: %s',i['user_name'], getcheckindata_dict[i['user_name']]['部门'], getcheckindata_dict[i['user_name']]['迟到时长'], i['watch_time'])
-                        df_department_list.append(getcheckindata_dict[i['user_name']]['部门'])
-                        df_type_list.append('迟到' + getcheckindata_dict[i['user_name']]['迟到时长'])
-                        df_watch_time_list.append(i['watch_time'])
+                    logger.info('当前考勤人员: %s', user_name)
+                    df_user_list.append(user_name)
+                    print(getcheckindata_dict[user_name])
+
+                    if user_name not in watch_list_dict:
+                        logger.info('未参加晨会')
+                        df_department_list.append(getcheckindata_dict[user_name]['部门'])
+                        df_type_list.append('未参加晨会')
+                        df_watch_time_list.append('')
                     else:
-                        logger.info('%s %s 观看时间: %s',i['user_name'], getcheckindata_dict[i['user_name']]['部门'], i['watch_time'])
-                        df_department_list.append(getcheckindata_dict[i['user_name']]['部门'])
-                        df_type_list.append('正常')
-                        df_watch_time_list.append(i['watch_time'])
+                        if getcheckindata_dict[user_name]['迟到时长'] != '--':
+                            logger.info('%s %s 迟到: %s 观看时间: %s',user_name, getcheckindata_dict[user_name]['部门'], getcheckindata_dict[user_name]['迟到时长'], watch_list_dict[user_name]['watch_time'])
+                            df_department_list.append(getcheckindata_dict[user_name]['部门'])
+                            df_type_list.append('迟到' + getcheckindata_dict[user_name]['迟到时长'])
+                            df_watch_time_list.append(watch_list_dict[user_name]['watch_time'])
+                        else:
+                            logger.info('%s %s 观看时间: %s',user_name, getcheckindata_dict[user_name]['部门'], watch_list_dict[user_name]['watch_time'])
+                            df_department_list.append(getcheckindata_dict[user_name]['部门'])
+                            df_type_list.append('正常')
+                            df_watch_time_list.append(watch_list_dict[user_name]['watch_time'])
 
     data_time = time.strftime("%Y-%m-%d", time.localtime())
     df = pd.DataFrame({
