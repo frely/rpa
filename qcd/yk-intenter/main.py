@@ -67,7 +67,7 @@ def find_yk_push_msg_sql(staff_wechet_id, customer_wechet_id, msg, start_time, e
 
 def find_yk_going_msg_sql(staff_wechet_id, customer_wechet_id, push_msg_time, end_time):
     """
-    SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `发送人`='员工' AND `消息内容`=%s AND `消息时间` BETWEEN %s AND %s
+    SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `发送人`='员工' AND `消息时间` BETWEEN %s AND %s
     """
     connection = pymysql.connect(host=os.getenv('rpa_host'),
                                 port=int(os.getenv('rpa_port')),
@@ -78,7 +78,7 @@ def find_yk_going_msg_sql(staff_wechet_id, customer_wechet_id, push_msg_time, en
                                 cursorclass=pymysql.cursors.DictCursor)
     with connection:
         with connection.cursor() as cursor:
-            sql = "SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `发送人`='员工' AND `消息内容`=%s AND `消息时间` BETWEEN %s AND %s"
+            sql = "SELECT `消息时间` FROM `云客聊天记录` WHERE `员工微信ID`=%s AND `客户微信ID`=%s AND `发送人`='员工' AND `消息时间` BETWEEN %s AND %s"
             cursor.execute(sql, (staff_wechet_id, customer_wechet_id, push_msg_time, end_time + " 23:59:59"))
             return cursor.fetchall()
 
@@ -124,19 +124,18 @@ def run():
                     logger.info('没有查询到推送时间')
                     continue
                 else:
-                    department_lv3_list.append(department_name)  # 添加部门信息
-                    user_list.append(user_name)  # 添加员工姓名
-                    push_list.append(1)  # 推送数量+1
-
                     push_msg_time = find_push_time[0]['消息时间']
-                    push_time.append(push_msg_time)  # 添加推送时间
                     msg_time_list = find_yk_going_msg_sql(i['员工微信ID'], i['客户微信ID'], push_msg_time, end_time)
+
+                    # 如果没有找到客服跟进信息，则抛弃数据
                     if len(msg_time_list) == 0:
-                        logger.info('没有客服跟进信息')
-                        going_list.append(0)  # 跟进数量+0
-                        going_time_list.append(0)  # 跟进时效+0
-                        going_time_time_list.append('未跟进')  # 添加跟进时间
+                        logger.info('没有客服跟进信息, 抛弃数据')
+                        continue
                     else:
+                        push_time.append(push_msg_time)  # 添加推送时间
+                        department_lv3_list.append(department_name)  # 添加部门信息
+                        user_list.append(user_name)  # 添加员工姓名
+                        push_list.append(1)  # 推送数量+1
                         going_time = msg_time_list[0]['消息时间'].strftime('%Y-%m-%d %H:%M:%S')
                         going_time_time_list.append(going_time)  # 添加跟进时间
                         logger.info('客服跟进时间: %s', going_time)
